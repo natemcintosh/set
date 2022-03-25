@@ -1124,3 +1124,57 @@ func TestSymmetricDifferenceInPlace(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkMonteCarloRuns(b *testing.B) {
+	// Create a set of numbers from 1 to 1,000
+	mcslice := make([]int, 1000)
+	// Fill it with numbers from 1 to 1,000
+	for i := 0; i < 1000; i++ {
+		mcslice[i] = i + 1
+	}
+	// Create a set from the slice
+	mcs := NewSet(mcslice)
+
+	// Create a set that is a subset of `mcs`
+	mcs_subset := mcs.Copy()
+	mcs_subset.Discard(1)
+	mcs_subset.Discard(20)
+	mcs_subset.Discard(50)
+	mcs_subset.Discard(143)
+	mcs_subset.Discard(999)
+
+	// Reset the benchmark timer
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		// Discover which mcs are not in the subset
+		mcs.Difference(mcs_subset)
+	}
+}
+
+func BenchmarkMonteCarloRunsInPlace(b *testing.B) {
+	// Create a set of numbers from 1 to 1,000
+	mcslice := make([]int, 1000)
+	// Fill it with numbers from 1 to 1,000
+	for i := 0; i < 1000; i++ {
+		mcslice[i] = i + 1
+	}
+	// Create a set from the slice
+	mcs := NewSet(mcslice)
+
+	// Create a set that is a subset of `mcs`
+	mcs_subset := mcs.Copy()
+	mcs_subset.Discard(1)
+	mcs_subset.Discard(20)
+	mcs_subset.Discard(50)
+	mcs_subset.Discard(143)
+	mcs_subset.Discard(999)
+
+	// Reset the benchmark timer
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		// Discover which mcs are not in the subset
+		mcs.DifferenceInPlace(mcs_subset)
+	}
+}

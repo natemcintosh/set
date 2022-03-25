@@ -1,5 +1,5 @@
 # set
-Educating myself about making sets in go. Attempting to match the python 
+Educating myself about making sets in go. Attempting to match the python
 [set](https://docs.python.org/3/library/stdtypes.html#set-types-set-frozenset)
 methods. All methods are written in more or less the naive way.
 
