@@ -698,3 +698,429 @@ func TestIsProperSubset(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkIsProperSubsetInt(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		s1   Set[int]
+		s2   Set[int]
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "some overlap, but not subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+		},
+		{
+			desc: "is small subset",
+			s1:   NewSet([]int{1, 5, 8, 9}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "is not a subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.s1.IsProperSubsetOf(bC.s2)
+			}
+		})
+	}
+}
+
+func TestIsSuperSetOf(t *testing.T) {
+	testCases := []struct {
+		desc string
+		s1   Set[int]
+		s2   Set[int]
+		want bool
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: true,
+		},
+		{
+			desc: "some overlap, but not subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+			want: false,
+		},
+		{
+			desc: "is small subset",
+			s1:   NewSet([]int{1, 5, 8, 9}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: false,
+		},
+		{
+			desc: "is not a subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: true,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			if got := tC.s1.IsSuperSetOf(tC.s2); got != tC.want {
+				t.Errorf("got %v, want %v", got, tC.want)
+			}
+		})
+	}
+}
+
+func BenchmarkIsSuperSetOf(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		s1   Set[int]
+		s2   Set[int]
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "some overlap, but not subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+		},
+		{
+			desc: "is small subset",
+			s1:   NewSet([]int{1, 5, 8, 9}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "is not a subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.s1.IsSuperSetOf(bC.s2)
+			}
+		})
+	}
+}
+
+func TestIsProperSuperSetOf(t *testing.T) {
+	testCases := []struct {
+		desc string
+		s1   Set[int]
+		s2   Set[int]
+		want bool
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: false,
+		},
+		{
+			desc: "some overlap, but not subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+			want: false,
+		},
+		{
+			desc: "is small subset",
+			s1:   NewSet([]int{1, 5, 8, 9}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: false,
+		},
+		{
+			desc: "is not a subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: true,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			if got := tC.s1.IsProperSuperSetOf(tC.s2); got != tC.want {
+				t.Errorf("got %v, want %v", got, tC.want)
+			}
+		})
+	}
+}
+
+func BenchmarkIsProperSuperSetOf(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		s1   Set[int]
+		s2   Set[int]
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "some overlap, but not subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+		},
+		{
+			desc: "is small subset",
+			s1:   NewSet([]int{1, 5, 8, 9}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "is not a subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.s1.IsProperSuperSetOf(bC.s2)
+			}
+		})
+	}
+}
+
+func TestDifference(t *testing.T) {
+	testCases := []struct {
+		desc string
+		s1   Set[int]
+		s2   Set[int]
+		want Set[int]
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: NewSet([]int{}),
+		},
+		{
+			desc: "some overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+			want: NewSet([]int{1, 2, 3, 4}),
+		},
+		{
+			desc: "tiny overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2}),
+			want: NewSet([]int{3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "no overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+			want: NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			if got := tC.s1.Difference(tC.s2); !got.Equals(tC.want) {
+				t.Errorf("got %v, want %v", got, tC.want)
+			}
+		})
+	}
+}
+
+func BenchmarkDifference(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		s1   Set[int]
+		s2   Set[int]
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "some overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+		},
+		{
+			desc: "tiny overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2}),
+		},
+		{
+			desc: "no overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.s1.Difference(bC.s2)
+			}
+		})
+	}
+}
+
+func TestDifferenceInPlace(t *testing.T) {
+	testCases := []struct {
+		desc string
+		s1   Set[int]
+		s2   Set[int]
+		want Set[int]
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: NewSet([]int{}),
+		},
+		{
+			desc: "some overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+			want: NewSet([]int{1, 2, 3, 4}),
+		},
+		{
+			desc: "tiny overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2}),
+			want: NewSet([]int{3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "no overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+			want: NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			if tC.s1.DifferenceInPlace(tC.s2); !tC.s1.Equals(tC.want) {
+				t.Errorf("got %v, want %v", tC.s1, tC.want)
+			}
+		})
+	}
+}
+
+func TestSymmetricDifference(t *testing.T) {
+	testCases := []struct {
+		desc string
+		s1   Set[int]
+		s2   Set[int]
+		want Set[int]
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: NewSet([]int{}),
+		},
+		{
+			desc: "some overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+			want: NewSet([]int{1, 2, 3, 4, 11, 12, 13, 14}),
+		},
+		{
+			desc: "tiny overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2}),
+			want: NewSet([]int{3, 4, 5, 6, 7, 8, 9, 10, 3, 4}),
+		},
+		{
+			desc: "no overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+			want: NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			if got := tC.s1.SymmetricDifference(tC.s2); !got.Equals(tC.want) {
+				t.Errorf("got %v, want %v", got, tC.want)
+			}
+		})
+	}
+}
+
+func BenchmarkSymmetricDifference(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		s1   Set[int]
+		s2   Set[int]
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "some overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+		},
+		{
+			desc: "tiny overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2}),
+		},
+		{
+			desc: "no overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.s1.SymmetricDifference(bC.s2)
+			}
+		})
+	}
+}
+
+func TestSymmetricDifferenceInPlace(t *testing.T) {
+	testCases := []struct {
+		desc string
+		s1   Set[int]
+		s2   Set[int]
+		want Set[int]
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: NewSet([]int{}),
+		},
+		{
+			desc: "some overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+			want: NewSet([]int{1, 2, 3, 4, 11, 12, 13, 14}),
+		},
+		{
+			desc: "tiny overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2}),
+			want: NewSet([]int{3, 4, 5, 6, 7, 8, 9, 10, 3, 4}),
+		},
+		{
+			desc: "no overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+			want: NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			if tC.s1.SymmetricDifferenceInPlace(tC.s2); !tC.s1.Equals(tC.want) {
+				t.Errorf("got %v, want %v", tC.s1, tC.want)
+			}
+		})
+	}
+}

@@ -1,7 +1,9 @@
 // set is a library designed to help you do set operations on comparable data types
 package set
 
-import "errors"
+import (
+	"errors"
+)
 
 var (
 	// This error is returned when you try to remove an item from a set that doesn't exist
@@ -65,6 +67,11 @@ func (s *Set[T]) Equals(t Set[T]) bool {
 	return true
 }
 
+// Len returns the length of the Set
+func (s *Set[T]) Len() int {
+	return len(s.data)
+}
+
 // IsEmpty returns true if the set is empty
 func (s *Set[T]) IsEmpty() bool {
 	return s.Len() == 0
@@ -83,49 +90,9 @@ func (s *Set[T]) Copy() Set[T] {
 	return Set[T]{data: copy}
 }
 
-// Len returns the length of the Set
-func (s *Set[T]) Len() int {
-	return len(s.data)
-}
-
 // Add will add a new item to `s`. If it already exists, it is ignored
 func (s *Set[T]) Add(element T) {
 	s.data[element] = struct{}{}
-}
-
-// Union will create a new Set, and fill it with the union of `s` and `t`
-func (s *Set[T]) Union(t Set[T]) Set[T] {
-	// Figure out which is larger
-	s_is_larger := s.Len() > t.Len()
-
-	// First create a copy of either `s` or `t`. Pick whichever is largest to reduce
-	// allocations.
-	var result Set[T]
-	if s_is_larger {
-		result = s.Copy()
-	} else {
-		result = t.Copy()
-	}
-
-	// Iterate over the smaller set, and add all it's items to `result`
-	if s_is_larger {
-		for v := range t.data {
-			result.Add(v)
-		}
-	} else {
-		for v := range s.data {
-			result.Add(v)
-		}
-	}
-
-	return result
-}
-
-// UnionInPlace will add all the items in set `t` to set `s`
-func (s *Set[T]) UnionInPlace(t Set[T]) {
-	for v := range t.data {
-		s.Add(v)
-	}
 }
 
 // Remove removes an item from the set. Returns an error if the item doesn't exist
@@ -171,6 +138,41 @@ func (s *Set[T]) Clear() {
 func (s *Set[T]) Contains(element T) bool {
 	_, ok := s.data[element]
 	return ok
+}
+
+// Union will create a new Set, and fill it with the union of `s` and `t`
+func (s *Set[T]) Union(t Set[T]) Set[T] {
+	// Figure out which is larger
+	s_is_larger := s.Len() > t.Len()
+
+	// First create a copy of either `s` or `t`. Pick whichever is largest to reduce
+	// allocations.
+	var result Set[T]
+	if s_is_larger {
+		result = s.Copy()
+	} else {
+		result = t.Copy()
+	}
+
+	// Iterate over the smaller set, and add all it's items to `result`
+	if s_is_larger {
+		for v := range t.data {
+			result.Add(v)
+		}
+	} else {
+		for v := range s.data {
+			result.Add(v)
+		}
+	}
+
+	return result
+}
+
+// UnionInPlace will add all the items in set `t` to set `s`
+func (s *Set[T]) UnionInPlace(t Set[T]) {
+	for v := range t.data {
+		s.Add(v)
+	}
 }
 
 // Intersection will create a new Set, and fill it with the intersection of `s` and `t`
@@ -254,6 +256,98 @@ func (s *Set[T]) IsProperSubsetOf(t Set[T]) bool {
 		return false
 	} else {
 		return true
+	}
+
+}
+
+// IsSuperSetOf tests whether every element in `t` is in `s`
+func (s *Set[T]) IsSuperSetOf(t Set[T]) bool {
+	// Iterate over `t`. If we find an item in `t` that is not in `s`, return false
+	for v := range t.data {
+		if !s.Contains(v) {
+			return false
+		}
+	}
+	return true
+}
+
+// IsProperSuperSetOf tests whether every element in `t` is in `s`, but that
+// `s.Equals(t) == false`
+func (s *Set[T]) IsProperSuperSetOf(t Set[T]) bool {
+
+	// Iterate over `t`. If we find an item in `t` that is not in `s`, return false
+	for v := range t.data {
+		if !s.Contains(v) {
+			return false
+		}
+	}
+
+	// If the lengths are equal, we have just verified that the two sets are equal.
+	if s.Len() == t.Len() {
+		return false
+	} else {
+		return true
+	}
+
+}
+
+// Difference returns a new set with elements in `s` that are not in `t`
+func (s *Set[T]) Difference(t Set[T]) Set[T] {
+	// Copy `s`
+	result := s.Copy()
+
+	// Iterate over `t`. If we find an item in `result`, remove it from `result`
+	for v := range t.data {
+		result.Discard(v)
+	}
+
+	return result
+}
+
+// DifferenceInPlace removes any elements in `s` that are in `t`
+func (s *Set[T]) DifferenceInPlace(t Set[T]) {
+	// Iterate over `t`. If we find an item in `s`, remove it from `s`
+	for v := range t.data {
+		s.Discard(v)
+	}
+}
+
+// SymmetricDifference returns a new set with elements in either `s` or `t`, but not both
+func (s *Set[T]) SymmetricDifference(t Set[T]) Set[T] {
+	// Make an empty set to populate
+	result := NewSet([]T{})
+
+	// The big question here is whether it's worth allocating a little to save a few checks
+	// For now, assume that it's best to just check everything, and store as little as
+	// possible.
+
+	// Iterate over `s`, and add the item if it does not exist in `t`
+	for v := range s.data {
+		if _, ok := t.data[v]; !ok {
+			result.Add(v)
+		}
+	}
+
+	// Iterate over `t`, and add the item if it does not exist in `s`
+	for v := range t.data {
+		if !s.Contains(v) {
+			result.Add(v)
+		}
+	}
+
+	return result
+}
+
+// SymmerticDifferenceInPlace removes any elements in `s` that are in `t`, and adds any
+// elements in `t` that are not in `s`
+func (s *Set[T]) SymmetricDifferenceInPlace(t Set[T]) {
+	// Iterate over `t`. If we find an item in `s`, remove it from `s`, otherwise add it
+	for v := range t.data {
+		if _, ok := s.data[v]; ok {
+			s.Discard(v)
+		} else {
+			s.Add(v)
+		}
 	}
 
 }
