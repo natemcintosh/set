@@ -50,21 +50,11 @@ func NewSetWithCapacity[T comparable, S ~[]T](data S, size int) Set[T] {
 	return Set[T]{data: result}
 }
 
-// Equals will return true if `s` and `t` are
-// - the same length
-// - contain the same elements
-func (s *Set[T]) Equals(t Set[T]) bool {
-	if s.Len() != t.Len() {
-		return false
-	}
-
-	for v := range s.data {
-		if _, ok := t.data[v]; !ok {
-			return false
-		}
-	}
-
-	return true
+// Contains will return true if the set contains the item. If the set is empty, returns
+// false
+func (s *Set[T]) Contains(element T) bool {
+	_, ok := s.data[element]
+	return ok
 }
 
 // Len returns the length of the Set
@@ -75,19 +65,6 @@ func (s *Set[T]) Len() int {
 // IsEmpty returns true if the set is empty
 func (s *Set[T]) IsEmpty() bool {
 	return s.Len() == 0
-}
-
-// Copy makes a deep copy as quickly as possible
-func (s *Set[T]) Copy() Set[T] {
-	// Make sure to allocate the same size
-	copy := make(map[T]struct{}, len(s.data))
-
-	// Fill it up
-	for v := range s.data {
-		copy[v] = struct{}{}
-	}
-
-	return Set[T]{data: copy}
 }
 
 // Add will add a new item to `s`. If it already exists, it is ignored
@@ -133,11 +110,34 @@ func (s *Set[T]) Clear() {
 	s.data = make(map[T]struct{})
 }
 
-// Contains will return true if the set contains the item. If the set is empty, returns
-// false
-func (s *Set[T]) Contains(element T) bool {
-	_, ok := s.data[element]
-	return ok
+// Copy makes a deep copy as quickly as possible
+func (s *Set[T]) Copy() Set[T] {
+	// Make sure to allocate the same size
+	copy := make(map[T]struct{}, len(s.data))
+
+	// Fill it up
+	for v := range s.data {
+		copy[v] = struct{}{}
+	}
+
+	return Set[T]{data: copy}
+}
+
+// Equals will return true if `s` and `t` are
+// - the same length
+// - contain the same elements
+func (s *Set[T]) Equals(t Set[T]) bool {
+	if s.Len() != t.Len() {
+		return false
+	}
+
+	for v := range s.data {
+		if !t.Contains(v) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // Union will create a new Set, and fill it with the union of `s` and `t`
@@ -184,13 +184,13 @@ func (s *Set[T]) Intersection(t Set[T]) Set[T] {
 	// in the larger of the two sets
 	if s.Len() < t.Len() {
 		for v := range s.data {
-			if _, ok := t.data[v]; ok {
+			if t.Contains(v) {
 				result.Add(v)
 			}
 		}
 	} else {
 		for v := range t.data {
-			if _, ok := s.data[v]; ok {
+			if s.Contains(v) {
 				result.Add(v)
 			}
 		}
@@ -202,7 +202,7 @@ func (s *Set[T]) Intersection(t Set[T]) Set[T] {
 // IntersectionInPlace will remove any items from `s` that are not in `t`
 func (s *Set[T]) IntersectionInPlace(t Set[T]) {
 	for v := range s.data {
-		if _, ok := t.data[v]; !ok {
+		if !t.Contains(v) {
 			s.Discard(v)
 		}
 	}
@@ -215,13 +215,13 @@ func (s *Set[T]) IsDisjoint(t Set[T]) bool {
 	// the other, return false
 	if s.Len() < t.Len() {
 		for v := range s.data {
-			if _, ok := t.data[v]; ok {
+			if t.Contains(v) {
 				return false
 			}
 		}
 	} else {
 		for v := range t.data {
-			if _, ok := s.data[v]; ok {
+			if s.Contains(v) {
 				return false
 			}
 		}
@@ -233,7 +233,7 @@ func (s *Set[T]) IsDisjoint(t Set[T]) bool {
 func (s *Set[T]) IsSubsetOf(t Set[T]) bool {
 	// Iterate over `s`. If we find an item in `s` that is not in `t`, return false
 	for v := range s.data {
-		if _, ok := t.data[v]; !ok {
+		if !t.Contains(v) {
 			return false
 		}
 	}
@@ -246,7 +246,7 @@ func (s *Set[T]) IsProperSubsetOf(t Set[T]) bool {
 
 	// Iterate over `s`. If we find an item in `s` that is not in `t`, return false
 	for v := range s.data {
-		if _, ok := t.data[v]; !ok {
+		if !t.Contains(v) {
 			return false
 		}
 	}
@@ -323,7 +323,7 @@ func (s *Set[T]) SymmetricDifference(t Set[T]) Set[T] {
 
 	// Iterate over `s`, and add the item if it does not exist in `t`
 	for v := range s.data {
-		if _, ok := t.data[v]; !ok {
+		if !t.Contains(v) {
 			result.Add(v)
 		}
 	}
@@ -343,7 +343,7 @@ func (s *Set[T]) SymmetricDifference(t Set[T]) Set[T] {
 func (s *Set[T]) SymmetricDifferenceInPlace(t Set[T]) {
 	// Iterate over `t`. If we find an item in `s`, remove it from `s`, otherwise add it
 	for v := range t.data {
-		if _, ok := s.data[v]; ok {
+		if s.Contains(v) {
 			s.Discard(v)
 		} else {
 			s.Add(v)
