@@ -7,10 +7,6 @@ comparable types (booleans, numbers, strings, pointers, channels, arrays of comp
 types, structs whose fields are all comparable types).
 
 ## API
-Create a new `Set` object with `NewSet()` or `NewSetWithCapacity()`. They take a slice,
-or any type that has a slice as the underlying data type, e.g. `type MyList = []int` is
-an acceptable input type.
-
 ```go
 package main
 
