@@ -3,6 +3,8 @@ package set
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 )
 
 var (
@@ -48,6 +50,24 @@ func NewSetWithCapacity[T comparable, S ~[]T](data S, size int) Set[T] {
 	}
 
 	return Set[T]{data: result}
+}
+
+func (s *Set[T]) String() string {
+	var b strings.Builder
+	last_index := s.Len() - 1
+	index := -1
+	b.WriteString("{")
+	for v := range s.data {
+		index += 1
+
+		if index < last_index {
+			b.WriteString(fmt.Sprintf("%v, ", v))
+		} else {
+			b.WriteString(fmt.Sprintf("%v}", v))
+		}
+	}
+
+	return b.String()
 }
 
 // Contains will return true if the set contains the item. If the set is empty, returns

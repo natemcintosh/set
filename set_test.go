@@ -1178,3 +1178,22 @@ func BenchmarkMonteCarloRunsInPlace(b *testing.B) {
 		mcs.DifferenceInPlace(mcs_subset)
 	}
 }
+
+func TestStringer(t *testing.T) {
+	s := NewSet([]int{1, 2, 3, 4})
+	str_version := s.String()
+
+	if !strings.HasPrefix(str_version, "{") {
+		t.Errorf("%v doesn't start with a '{'", str_version)
+	}
+
+	if !strings.HasSuffix(str_version, "}") {
+		t.Errorf("%v doesn't end with a '}'", str_version)
+	}
+
+	counted_commas := strings.Count(str_version, ", ")
+	expected_commas := s.Len() - 1
+	if counted_commas != expected_commas {
+		t.Errorf("saw %d ', '; wanted %d", counted_commas, expected_commas)
+	}
+}
