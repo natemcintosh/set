@@ -74,7 +74,7 @@ func (s *Set[T]) Add(element T) {
 
 // Remove removes an item from the set. Returns an error if the item doesn't exist
 func (s *Set[T]) Remove(element T) error {
-	if _, ok := s.data[element]; !ok {
+	if !s.Contains(element) {
 		return ErrElementNotFound
 	}
 
