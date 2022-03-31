@@ -382,6 +382,52 @@ func TestContains(t *testing.T) {
 	}
 }
 
+func BenchmarkContains(b *testing.B) {
+	type Person struct {
+		Name string
+		Age  int
+	}
+
+	benchCases := []struct {
+		desc string
+		s    Set[Person]
+		v    Person
+		want bool
+	}{
+		{
+			desc: "valid contains",
+			s:    NewSet([]Person{{"Bob", 42}, {"Alice", 24}, {"Charlie", 12}}),
+			v:    Person{"Bob", 42},
+			want: true,
+		},
+		{
+			desc: "invalid contains, partial match",
+			s:    NewSet([]Person{{"Bob", 42}, {"Alice", 24}, {"Charlie", 12}}),
+			v:    Person{"Bob", 43},
+			want: false,
+		},
+		{
+			desc: "invalid contains, no match at all",
+			s:    NewSet([]Person{{"Bob", 42}, {"Alice", 24}, {"Charlie", 12}}),
+			v:    Person{"Nate", 43},
+			want: false,
+		},
+		{
+			desc: "invalid contains (empty set)",
+			s:    NewSet([]Person{}),
+			v:    Person{"Bob", 42},
+			want: false,
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.s.Contains(bC.v)
+			}
+		})
+	}
+}
+
 func TestIntersection(t *testing.T) {
 
 	testCases := []struct {

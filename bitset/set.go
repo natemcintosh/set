@@ -3,6 +3,11 @@
 // few very large integers), use `github.com/natemcintosh/set` instead.
 package bitset
 
+import (
+	"fmt"
+	"strings"
+)
+
 type Set struct {
 	// bits represents a set of numbers on a number line. Positive numbers are "to the
 	// right" (larger indices in the slice), and negative numbers are "to the left"
@@ -68,6 +73,25 @@ func NewSet[S ~[]int](data S) Set {
 
 }
 
+func (s Set) String() string {
+	var b strings.Builder
+	last_index := len(s.bits) - 1
+	b.WriteString("{")
+	for idx, v := range s.bits {
+
+		if v {
+			if idx < last_index {
+				b.WriteString(fmt.Sprintf("%v, ", idx+s.min_item_offset_from_0))
+			} else {
+				b.WriteString(fmt.Sprintf("%v", idx+s.min_item_offset_from_0))
+			}
+		}
+	}
+	b.WriteString("}")
+
+	return b.String()
+}
+
 // Slice returns a sorted slice representing the integers in the set
 func (s *Set) Slice() []int {
 	result := make([]int, 0, s.length)
@@ -80,6 +104,32 @@ func (s *Set) Slice() []int {
 	}
 
 	return result
+}
+
+// Contains will return true if the set contains the item. If the set is empty, returns
+// false
+func (s *Set) Contains(item int) bool {
+	if s.IsEmpty() {
+		return false
+	}
+
+	// Check if the item is outside the bounds of the slice
+	if item < s.min_item_offset_from_0 {
+		return false
+	} else if item > s.min_item_offset_from_0+(s.length-1) {
+		return false
+	}
+
+	// Check if the item at the correct offset is true
+	return s.bits[item-s.min_item_offset_from_0]
+}
+
+func (s *Set) Len() int {
+	return s.length
+}
+
+func (s *Set) IsEmpty() bool {
+	return s.Len() == 0
 }
 
 // abs returns the absolute value of x.
