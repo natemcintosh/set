@@ -1,6 +1,7 @@
 package set
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -1179,7 +1180,7 @@ func BenchmarkMonteCarloRunsInPlace(b *testing.B) {
 	}
 }
 
-func TestStringer(t *testing.T) {
+func TestString(t *testing.T) {
 	s := NewSet([]int{1, 2, 3, 4})
 	str_version := s.String()
 
@@ -1191,6 +1192,27 @@ func TestStringer(t *testing.T) {
 		t.Errorf("%v doesn't end with a '}'", str_version)
 	}
 
+	// This would obviously fail if testing a set of strings which contain commas
+	counted_commas := strings.Count(str_version, ", ")
+	expected_commas := s.Len() - 1
+	if counted_commas != expected_commas {
+		t.Errorf("saw %d ', '; wanted %d", counted_commas, expected_commas)
+	}
+}
+
+func TestFormat(t *testing.T) {
+	s := NewSet([]int{1, 2, 3, 4})
+	str_version := fmt.Sprintf("%v", s)
+
+	if !strings.HasPrefix(str_version, "{") {
+		t.Errorf("%v doesn't start with a '{'", str_version)
+	}
+
+	if !strings.HasSuffix(str_version, "}") {
+		t.Errorf("%v doesn't end with a '}'", str_version)
+	}
+
+	// This would obviously fail if testing a set of strings which contain commas
 	counted_commas := strings.Count(str_version, ", ")
 	expected_commas := s.Len() - 1
 	if counted_commas != expected_commas {

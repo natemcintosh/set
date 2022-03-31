@@ -52,7 +52,7 @@ func NewSetWithCapacity[T comparable, S ~[]T](data S, size int) Set[T] {
 	return Set[T]{data: result}
 }
 
-func (s *Set[T]) String() string {
+func (s Set[T]) String() string {
 	var b strings.Builder
 	last_index := s.Len() - 1
 	index := -1
