@@ -70,6 +70,18 @@ func (s Set[T]) String() string {
 	return b.String()
 }
 
+// Slice will return all the items in the set as a slice. They are not guaranteed in any
+// particular order.
+func (s *Set[T]) Slice() []T {
+	result := make([]T, 0, s.Len())
+
+	for v := range s.data {
+		result = append(result, v)
+	}
+
+	return result
+}
+
 // Contains will return true if the set contains the item. If the set is empty, returns
 // false
 func (s *Set[T]) Contains(element T) bool {
