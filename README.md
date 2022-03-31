@@ -23,7 +23,7 @@ func main() {
 	s1 := set.NewSet(raw_data_1)
 	// See that duplicate values no longer exist
 	fmt.Println(s1)
-	// {map[1:{} 2:{} 4:{} 5:{} 6:{} 7:{}]}
+	// {5, 6, 7, 1, 2, 4}
 
 	// Check if an item exists in the set
 	if s1.Contains(10) {
@@ -99,12 +99,12 @@ func main() {
 	// What's the union of the two sets
 	union := s2.Union(s3)
 	fmt.Printf("Created a new set (deep copy), containing: %v\n", union)
-	// Created a new set (deep copy), containing: {map[-100.21:{} 1:{} 2:{} 3.14:{} 4.95:{} 5.67:{}]}
+	// Created a new set (deep copy), containing: {3.14, 5.67, -100.21, 1, 2, 4.95}
 
 	// Union, but update the set in place. This will be faster as it doesn't create a copy
 	s2.UnionInPlace(s3)
 	fmt.Printf("s2 has become: %v\n", s2)
-	// s2 has become: {map[-100.21:{} 1:{} 2:{} 3.14:{} 4.95:{} 5.67:{}]}
+	// s2 has become: {1, 2, 5.67, -100.21, 4.95, 3.14}
 
 	// Recreate original `s2`
 	s2 = set.NewSet(numbers)
@@ -112,12 +112,12 @@ func main() {
 	// What is the intersection of the two sets?
 	intersection := s2.Intersection(s3)
 	fmt.Printf("s2 intersection with s3 = %v\n", intersection)
-	// s2 intersection with s3 = {map[3.14:{} 4.95:{}]}
+	// s2 intersection with s3 = {4.95, 3.14}
 
 	// IntersectionInPlace will update a set in place. Faster than Intersection
 	s2.IntersectionInPlace(s3)
 	fmt.Printf("s2 has become: %v\n", s2)
-	// s2 has become: {map[3.14:{} 4.95:{}]}
+	// s2 has become: {3.14, 4.95}
 
 	// Recreate original `s2`
 	s2 = set.NewSet(numbers)
@@ -150,12 +150,12 @@ func main() {
 	taking_math := set.NewSet([]string{"Curly", "Shemp", "Albert"})
 	not_taking_math := taking_science.Difference(taking_math)
 	fmt.Printf("The following students take science but not math: %v\n", not_taking_math)
-	// The following students take science but not math: {map[Larry:{} Moe:{}]}
+	// The following students take science but not math: {Larry, Moe}
 
 	// DifferenceInPlace is faster, but alters the original
 	taking_science.DifferenceInPlace(taking_math)
 	fmt.Printf("taking_science is now: %v\n", taking_science)
-	// taking_science is now: {map[Larry:{} Moe:{}]}
+	// taking_science is now: {Larry, Moe}
 
 	// Reset `taking_science`
 	taking_science = set.NewSet([]string{"Larry", "Curly", "Moe", "Shemp"})
@@ -163,12 +163,12 @@ func main() {
 	// What is the symmetric difference? I.e. not in the intersection of the two
 	sym_diff := taking_science.SymmetricDifference(taking_math)
 	fmt.Printf("The following students are taking science or math, but not both: %v\n", sym_diff)
-	// The following students are taking science or math, but not both: {map[Albert:{} Larry:{} Moe:{}]}
+	// The following students are taking science or math, but not both: {Larry, Moe, Albert}
 
 	// Once again, the in place version is faster, but alters the original
 	taking_science.SymmetricDifferenceInPlace(taking_math)
 	fmt.Printf("taking_science has become %v\n", taking_science)
-	// taking_science has become {map[Albert:{} Larry:{} Moe:{}]}
+	// taking_science has become {Larry, Moe, Albert}
 }
 ```
 
