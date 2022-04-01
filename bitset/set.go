@@ -4,8 +4,14 @@
 package bitset
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+)
+
+var (
+	// This error is returned when you try to remove an item from a set that doesn't exist
+	ErrElementNotFound = errors.New("element not found")
 )
 
 type Set struct {
@@ -128,12 +134,12 @@ func (s *Set) Contains(item int) bool {
 	// Check if the item is outside the bounds of the slice
 	if s.under_lower_bound(item) {
 		return false
-	} else if item > s.smallest_item+(len(s.bits)-1) {
+	} else if s.over_upper_bound(item) {
 		return false
 	}
 
 	// Check if the item at the correct offset is true
-	return s.bits[item-s.smallest_item]
+	return s.bits[s.calc_idx_of_item(item)]
 }
 
 // Len returns the length of the Set
@@ -151,11 +157,18 @@ func (s *Set) under_lower_bound(item int) bool {
 }
 
 func (s *Set) over_upper_bound(item int) bool {
-	return item > s.smallest_item+len(s.bits)-1
+	return item > s.get_upper_value()
 }
 
 func (s *Set) get_upper_value() int {
 	return s.smallest_item + len(s.bits) - 1
+}
+
+// calc_idx_of_item does not check if your item is out of bounds. Use one of
+// `under_lower_bound` or `over_upper_bound` to make sure you are in bounds. Also, if
+// the returned index is negative, then it's definitely out of bounds.
+func (s *Set) calc_idx_of_item(item int) int {
+	return item - s.smallest_item
 }
 
 // Add will add a new item to `s`. If it already exists, it is ignored
@@ -206,5 +219,113 @@ func (s *Set) Add(item int) {
 	}
 
 	// Set the item at the correct index to true
-	s.bits[item-s.smallest_item] = true
+	s.bits[s.calc_idx_of_item(item)] = true
+}
+
+// Remove removes an item from the set. Returns an error if the item doesn't exist
+func (s *Set) Remove(item int) error {
+	if !s.Contains(item) {
+		return ErrElementNotFound
+	}
+
+	// Remove the item
+	s.bits[s.calc_idx_of_item(item)] = false
+
+	// Decrement the number of items field
+	s.n_items -= 1
+
+	// Was the value removed the smallest value?
+	if item == s.smallest_item {
+		// Make the slice smaller
+
+		// Find the next true index in the slice, and make that the start
+		for idx, v := range s.bits {
+			if v {
+				s.bits = s.bits[idx:]
+				s.smallest_item = item + idx
+				break
+			}
+		}
+
+	} else if item == s.get_upper_value() {
+		// Was the value removed the largest value?
+		// Make the slice smaller
+
+		// Find the index of the next true index in the slice from the rear, and make
+		// that the end
+		for idx := len(s.bits) - 1; idx >= 0; idx-- {
+			if s.bits[idx] {
+				// Keep everything up to and including this index
+				s.bits = s.bits[:(idx + 1)]
+				break
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// Discard removes an item from the set. If it doesn't exist, it is ignored
+func (s *Set) Discard(item int) {
+	if !s.Contains(item) {
+		return
+	}
+
+	// Remove the item
+	s.bits[s.calc_idx_of_item(item)] = false
+
+	// Decrement the number of items field
+	s.n_items -= 1
+
+	// Was the value removed the smallest value?
+	if item == s.smallest_item {
+		// Make the slice smaller
+
+		// Find the next true index in the slice, and make that the start
+		for idx, v := range s.bits {
+			if v {
+				s.bits = s.bits[idx:]
+				s.smallest_item = item + idx
+				break
+			}
+		}
+
+	} else if item == s.get_upper_value() {
+		// Was the value removed the largest value?
+		// Make the slice smaller
+
+		// Find the index of the next true index in the slice from the rear, and make
+		// that the end
+		for idx := len(s.bits) - 1; idx >= 0; idx-- {
+			if s.bits[idx] {
+				// Keep everything up to and including this index
+				s.bits = s.bits[:(idx + 1)]
+				break
+			}
+		}
+
+	}
+}
+
+// Equals will return true if `s` and `t` are
+// - the same length
+// - contain the same elements
+func (s *Set) Equals(t Set) bool {
+	if s.Len() != t.Len() {
+		return false
+	}
+
+	// If they don't have the same start, they are not equal
+	if s.smallest_item != t.smallest_item {
+		return false
+	}
+
+	for idx, v := range s.bits {
+		if t.bits[idx] != v {
+			return false
+		}
+	}
+
+	return true
 }

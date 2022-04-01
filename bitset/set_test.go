@@ -420,3 +420,196 @@ func FuzzAdd(f *testing.F) {
 
 	})
 }
+
+func TestRemove(t *testing.T) {
+	testCases := []struct {
+		desc               string
+		s                  Set
+		v                  int
+		want_set           Set
+		want_err_value     error
+		want_smallest_item int
+	}{
+		{
+			desc:               "valid remove",
+			s:                  NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:                  5,
+			want_set:           NewSet([]int{1, 2, 3, 4, 6, 7, 8, 9, 10}),
+			want_err_value:     nil,
+			want_smallest_item: 1,
+		},
+		{
+			desc:               "invalid remove",
+			s:                  NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:                  11,
+			want_set:           NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want_err_value:     ErrElementNotFound,
+			want_smallest_item: 1,
+		},
+		{
+			desc:               "smallest item",
+			s:                  NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:                  1,
+			want_set:           NewSet([]int{2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want_err_value:     nil,
+			want_smallest_item: 2,
+		},
+		{
+			desc:               "largest item",
+			s:                  NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:                  10,
+			want_set:           NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9}),
+			want_err_value:     nil,
+			want_smallest_item: 1,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			err := tC.s.Remove(tC.v)
+			if err != tC.want_err_value {
+				t.Errorf("got error %v, want %v", err, tC.want_err_value)
+			}
+			if !tC.s.Equals(tC.want_set) {
+				t.Errorf("got %v, want %v", tC.s, tC.want_set)
+			}
+			if tC.want_smallest_item != tC.s.smallest_item {
+				t.Errorf("smallest item is %v; should be %v", tC.s.smallest_item, tC.want_smallest_item)
+			}
+		})
+	}
+}
+
+func FuzzRemoveDiscard(f *testing.F) {
+	// We are hoping to find out of bounds panics with this fuzz test
+	f.Add(-2, 0, 3, 4, 5, 6, 7, 8, 9, 10)
+	f.Add(-10, -4, -5, -11, -20, 12, 16, 13, 34, 35)
+
+	f.Fuzz(func(
+		t *testing.T,
+		s1 int,
+		s2 int,
+		s3 int,
+		s4 int,
+		s5 int,
+		s6 int,
+		s7 int,
+		s8 int,
+		s9 int,
+		s10 int,
+	) {
+		// Create the set
+		set := NewSet([]int{s1, s2, s3, s4, s5, s6, s7, s8, s9})
+
+		prev_smallest := set.smallest_item
+		prev_largest := set.get_upper_value()
+
+		// Run Add, hoping to find panics
+		set.Remove(s10)
+
+		// If s10 == the smallest item in the set, then check that the smallest item
+		// is no longer equal to that
+		if (s10 == prev_smallest) && (s10 == set.smallest_item) {
+			t.Errorf("The smallest item was removed, but the internal field has not been updated")
+		}
+
+		// If s10 == the largest item in the set, then check that the largest item is
+		// no longer equal to that
+		if (s10 == prev_largest) && (s10 == set.get_upper_value()) {
+			t.Errorf("The largest item was removed, but the slice hasn't been updated")
+		}
+
+		// Recreate set and redo with Discard
+		set = NewSet([]int{s1, s2, s3, s4, s5, s6, s7, s8, s9})
+
+		prev_smallest = set.smallest_item
+		prev_largest = set.get_upper_value()
+
+		// Run Add, hoping to find panics
+		set.Remove(s10)
+
+		// If s10 == the smallest item in the set, then check that the smallest item
+		// is no longer equal to that
+		if (s10 == prev_smallest) && (s10 == set.smallest_item) {
+			t.Errorf("The smallest item was discarded, but the internal field has not been updated")
+		}
+
+		// If s10 == the largest item in the set, then check that the largest item is
+		// no longer equal to that
+		if (s10 == prev_largest) && (s10 == set.get_upper_value()) {
+			t.Errorf("The largest item was discarded, but the slice hasn't been updated")
+		}
+
+	})
+}
+
+func BenchmarkRemove(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		s    Set
+		v    int
+	}{
+		{
+			desc: "valid remove",
+			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:    5,
+		},
+		{
+			desc: "invalid remove",
+			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:    11,
+		},
+		{
+			desc: "smallest item",
+			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:    1,
+		},
+		{
+			desc: "largest item",
+			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:    10,
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.s.Remove(bC.v)
+			}
+		})
+	}
+}
+
+func BenchmarkDiscard(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		s    Set
+		v    int
+	}{
+		{
+			desc: "valid remove",
+			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:    5,
+		},
+		{
+			desc: "invalid remove",
+			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:    11,
+		},
+		{
+			desc: "smallest item",
+			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:    1,
+		},
+		{
+			desc: "largest item",
+			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:    10,
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.s.Discard(bC.v)
+			}
+		})
+	}
+}
