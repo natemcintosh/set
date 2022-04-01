@@ -21,22 +21,26 @@ type Set struct {
 	// [true, false, true, false, false, true, true, true]
 	bits []bool
 
-	// min_item_offset_from_0 tells you the distance from 0 to the smallest number in
+	// smallest_item tells you the distance from 0 to the smallest number in
 	// the set, which is the first item in the set. The smallest number can be negative.
-	// In the case of the example shown for the `bits` field, `min_item_offset_from_0`
+	// In the case of the example shown for the `bits` field, `smallest_item`
 	// would be -2
-	min_item_offset_from_0 int
+	smallest_item int
 
-	// length is an easy way to keep track of how many elements without having to
+	// n_items is an easy way to keep track of how many elements without having to
 	// iterate over the whole `bits` slice
-	length int
+	n_items int
 }
 
 // NewSet will return a bitset Set from an input slice of `ints`, or anything that has a
 // slice of `ints` as the underlying data type.
 func NewSet[S ~[]int](data S) Set {
 	if len(data) == 0 {
-		return Set{}
+		return Set{
+			bits:          make([]bool, 0),
+			smallest_item: 0,
+			n_items:       0,
+		}
 	}
 
 	var (
@@ -69,8 +73,16 @@ func NewSet[S ~[]int](data S) Set {
 		bits[v-min] = true
 	}
 
-	return Set{bits: bits, min_item_offset_from_0: min, length: len(unique_nums)}
+	return Set{bits: bits, smallest_item: min, n_items: len(unique_nums)}
 
+}
+
+// abs returns the absolute value of x.
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
 
 func (s Set) String() string {
@@ -81,9 +93,9 @@ func (s Set) String() string {
 
 		if v {
 			if idx < last_index {
-				b.WriteString(fmt.Sprintf("%v, ", idx+s.min_item_offset_from_0))
+				b.WriteString(fmt.Sprintf("%v, ", idx+s.smallest_item))
 			} else {
-				b.WriteString(fmt.Sprintf("%v", idx+s.min_item_offset_from_0))
+				b.WriteString(fmt.Sprintf("%v", idx+s.smallest_item))
 			}
 		}
 	}
@@ -94,12 +106,12 @@ func (s Set) String() string {
 
 // Slice returns a sorted slice representing the integers in the set
 func (s *Set) Slice() []int {
-	result := make([]int, 0, s.length)
+	result := make([]int, 0, s.n_items)
 
 	// Iterate over the slice and add to `result`
 	for idx, v := range s.bits {
 		if v {
-			result = append(result, idx+s.min_item_offset_from_0)
+			result = append(result, idx+s.smallest_item)
 		}
 	}
 
@@ -114,28 +126,85 @@ func (s *Set) Contains(item int) bool {
 	}
 
 	// Check if the item is outside the bounds of the slice
-	if item < s.min_item_offset_from_0 {
+	if s.under_lower_bound(item) {
 		return false
-	} else if item > s.min_item_offset_from_0+(s.length-1) {
+	} else if item > s.smallest_item+(len(s.bits)-1) {
 		return false
 	}
 
 	// Check if the item at the correct offset is true
-	return s.bits[item-s.min_item_offset_from_0]
+	return s.bits[item-s.smallest_item]
 }
 
+// Len returns the length of the Set
 func (s *Set) Len() int {
-	return s.length
+	return s.n_items
 }
 
+// IsEmpty returns true if the set is empty
 func (s *Set) IsEmpty() bool {
 	return s.Len() == 0
 }
 
-// abs returns the absolute value of x.
-func abs(x int) int {
-	if x < 0 {
-		return -x
+func (s *Set) under_lower_bound(item int) bool {
+	return item < s.smallest_item
+}
+
+func (s *Set) over_upper_bound(item int) bool {
+	return item > s.smallest_item+len(s.bits)-1
+}
+
+func (s *Set) get_upper_value() int {
+	return s.smallest_item + len(s.bits) - 1
+}
+
+// Add will add a new item to `s`. If it already exists, it is ignored
+func (s *Set) Add(item int) {
+	// Check if the new element is outside the bounds
+	if item < s.smallest_item {
+		// Calculate how many new elements we need to have on the front
+		new_items := s.smallest_item - item
+
+		// Create a new slice that goes from the new element up to (but not including)
+		// the start of the old slice
+		to_add_to_front := make([]bool, new_items)
+		to_add_to_front[0] = true
+
+		// Append the old slice to the new one, and make it the `bits` field
+		s.bits = append(to_add_to_front, s.bits...)
+
+		// Update the `smallest_item` field
+		s.smallest_item = item
+
+		// Increment the length field
+		s.n_items += 1
+
+		// Return
+		return
+	} else if s.over_upper_bound(item) {
+		// Calculate how many new elements we need to add to the end
+		new_items := item - s.get_upper_value()
+
+		// Create a new slice that goes from one after the end of the current slice to
+		// the new element
+		to_append := make([]bool, new_items)
+		to_append[len(to_append)-1] = true
+
+		// Append the new slice to the old
+		s.bits = append(s.bits, to_append...)
+
+		// Increment the length field
+		s.n_items += 1
+
+		// Return
+		return
 	}
-	return x
+
+	// Update `s.n_items` if necessary
+	if !s.Contains(item) {
+		s.n_items += 1
+	}
+
+	// Set the item at the correct index to true
+	s.bits[item-s.smallest_item] = true
 }
