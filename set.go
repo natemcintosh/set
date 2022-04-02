@@ -84,8 +84,8 @@ func (s *Set[T]) Slice() []T {
 
 // Contains will return true if the set contains the item. If the set is empty, returns
 // false
-func (s *Set[T]) Contains(element T) bool {
-	_, ok := s.data[element]
+func (s *Set[T]) Contains(item T) bool {
+	_, ok := s.data[item]
 	return ok
 }
 
@@ -100,23 +100,23 @@ func (s *Set[T]) IsEmpty() bool {
 }
 
 // Add will add a new item to `s`. If it already exists, it is ignored
-func (s *Set[T]) Add(element T) {
-	s.data[element] = struct{}{}
+func (s *Set[T]) Add(item T) {
+	s.data[item] = struct{}{}
 }
 
 // Remove removes an item from the set. Returns an error if the item doesn't exist
-func (s *Set[T]) Remove(element T) error {
-	if !s.Contains(element) {
+func (s *Set[T]) Remove(item T) error {
+	if !s.Contains(item) {
 		return ErrElementNotFound
 	}
 
-	delete(s.data, element)
+	delete(s.data, item)
 	return nil
 }
 
 // Discard removes an item from the set. If it doesn't exist, it is ignored
-func (s *Set[T]) Discard(element T) {
-	delete(s.data, element)
+func (s *Set[T]) Discard(item T) {
+	delete(s.data, item)
 }
 
 // Pop will remove and return an arbitrary item from the set. If the set is empty,
