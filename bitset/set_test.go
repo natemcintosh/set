@@ -139,6 +139,46 @@ func FuzzConvertBackAndForth(f *testing.F) {
 	})
 }
 
+func BenchmarkConvertBackAndForth(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		s    []int
+	}{
+		{
+			desc: "empty",
+			s:    []int{},
+		},
+		{
+			desc: "zero",
+			s:    []int{0},
+		},
+		{
+			desc: "one",
+			s:    []int{1},
+		},
+		{
+			desc: "small",
+			s:    []int{-1, 0, 1},
+		},
+		{
+			desc: "medium",
+			s:    []int{-2, 0, 3, 4, 5, 6, 7, 8, 9, 10},
+		},
+		{
+			desc: "with duplicates",
+			s:    []int{0, 0, 1, 1, 2},
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				set := NewSet(bC.s)
+				set.Slice()
+			}
+		})
+	}
+}
+
 // equal tells whether a and b contain the same elements.
 // A nil argument is equivalent to an empty slice.
 func equal(a, b []int) bool {
