@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/natemcintosh/set"
 	"golang.org/x/exp/slices"
 )
 
@@ -652,4 +653,180 @@ func BenchmarkDiscard(b *testing.B) {
 			}
 		})
 	}
+}
+
+func TestPop(t *testing.T) {
+	testCases := []struct {
+		desc     string
+		s        Set
+		want_err error
+	}{
+		{
+			desc:     "valid pop",
+			s:        NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want_err: nil,
+		},
+		{
+			desc:     "invalid pop",
+			s:        NewSet([]int{}),
+			want_err: ErrElementNotFound,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			original_len := tC.s.Len()
+			_, err := tC.s.Pop()
+			if err != tC.want_err {
+				t.Errorf("got error %v, want %v", err, tC.want_err)
+			}
+			// if the error is nil, check that the length is one less than before
+			if err == nil && tC.s.Len() != original_len-1 {
+				t.Errorf("got %v, want %v", tC.s.Len(), original_len-1)
+			}
+		})
+	}
+}
+
+func TestClear(t *testing.T) {
+	s := NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+	s.Clear()
+	if !s.IsEmpty() {
+		t.Errorf("got %v, want empty", s)
+	}
+}
+
+func BenchmarkMonteCarloRuns(b *testing.B) {
+	// Create a set of numbers from 1 to 1,000
+	mcslice := make([]int, 1000)
+	// Fill it with numbers from 1 to 1,000
+	for i := 0; i < 1000; i++ {
+		mcslice[i] = i + 1
+	}
+	// Create a set from the slice
+	mcs := NewSet(mcslice)
+
+	// Create a set that is a subset of `mcs`
+	mcs_subset := mcs.Copy()
+	mcs_subset.Discard(1)
+	mcs_subset.Discard(20)
+	mcs_subset.Discard(50)
+	mcs_subset.Discard(143)
+	mcs_subset.Discard(999)
+
+	// Reset the benchmark timer
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		// Discover which mcs are not in the subset
+		mcs.Union(mcs_subset)
+	}
+}
+
+func TestUnion(t *testing.T) {
+	testCases := []struct {
+		desc string
+		in1  Set
+		in2  Set
+		want Set
+	}{
+		{
+			desc: "entirely overlapping",
+			in1:  NewSet([]int{1, 2, 3}),
+			in2:  NewSet([]int{1, 2, 3}),
+			want: NewSet([]int{1, 2, 3}),
+		},
+		{
+			desc: "some overlap",
+			in1:  NewSet([]int{1, 2, 3}),
+			in2:  NewSet([]int{2, 3, 4, 5}),
+			want: NewSet([]int{1, 2, 3, 4, 5}),
+		},
+		{
+			desc: "no overlap",
+			in1:  NewSet([]int{1, 2, 3}),
+			in2:  NewSet([]int{4, 5, 6, 7}),
+			want: NewSet([]int{1, 2, 3, 4, 5, 6, 7}),
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			got := tC.in1.Union(tC.in2)
+
+			if !got.Equals(tC.want) {
+				t.Errorf("got %v; want %v", tC.want, got)
+			}
+		})
+	}
+}
+
+func BenchmarkUnionInt(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		in1  Set
+		in2  Set
+	}{
+		{
+			desc: "entirely overlapping",
+			in1:  NewSet([]int{1, 2, 3}),
+			in2:  NewSet([]int{1, 2, 3}),
+		},
+		{
+			desc: "some overlap",
+			in1:  NewSet([]int{1, 2, 3}),
+			in2:  NewSet([]int{2, 3, 4, 5}),
+		},
+		{
+			desc: "no overlap",
+			in1:  NewSet([]int{1, 2, 3}),
+			in2:  NewSet([]int{4, 5, 6, 7}),
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.in1.Union(bC.in2)
+			}
+		})
+	}
+}
+
+func FuzzUnion(f *testing.F) {
+	// We are hoping to find out of bounds panics with this fuzz test
+	// We are also checking that both set and bitset produce the same result
+	f.Add(-2, 0, 3, 4, 5, 6, 7, 8, 9, 10)
+	f.Add(-10, -4, -5, -11, -20, 12, 16, 13, 34, 35)
+
+	f.Fuzz(func(
+		t *testing.T,
+		s1 int,
+		s2 int,
+		s3 int,
+		s4 int,
+		s5 int,
+		s6 int,
+		s7 int,
+		s8 int,
+		s9 int,
+		s10 int,
+	) {
+		// Create the sets
+		bitset1 := NewSet([]int{s1, s2, s3, s4, s5})
+		bitset2 := NewSet([]int{s6, s7, s8, s9, s10})
+
+		set1 := set.NewSet([]int{s1, s2, s3, s4, s5})
+		set2 := set.NewSet([]int{s6, s7, s8, s9, s10})
+
+		// Take the union
+		bitunion := bitset1.Union(bitset2)
+		union := set1.Union(set2)
+
+		// Convert them to slices to compare
+		bitslice := bitunion.Slice()
+		slice := union.Slice()
+		slices.Sort(slice)
+
+		if !equal(bitslice, slice) {
+			t.Errorf("bit set %v did not match set %v", bitslice, slice)
+		}
+	})
 }

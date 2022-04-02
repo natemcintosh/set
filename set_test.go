@@ -2,7 +2,6 @@ package set
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 	"testing"
 )
@@ -12,7 +11,7 @@ func TestNewStringSet(t *testing.T) {
 	want := Set[string]{data: map[string]struct{}{"a": {}, "b": {}, "c": {}}}
 	got := NewSet(in)
 
-	if !reflect.DeepEqual(want, got) {
+	if !want.Equals(got) {
 		t.Errorf("got %v; want %v", want, got)
 	}
 }
@@ -29,7 +28,7 @@ func TestNewFloatSet(t *testing.T) {
 	want := Set[float64]{data: map[float64]struct{}{1.0: {}, 2.0: {}, 3.0: {}}}
 	got := NewSet(in)
 
-	if !reflect.DeepEqual(want, got) {
+	if !want.Equals(got) {
 		t.Errorf("got %v; want %v", want, got)
 	}
 }
@@ -45,26 +44,26 @@ func TestAdd(t *testing.T) {
 	s1 := NewSet([]int{1, 2, 3})
 	s1.Add(3)
 	want1 := NewSet([]int{1, 2, 3})
-	if !reflect.DeepEqual(s1, want1) {
+	if !s1.Equals(want1) {
 		t.Errorf("got %v; want %v", s1, want1)
 	}
 
 	s1.Add(4)
 	want1 = NewSet([]int{1, 2, 3, 4})
-	if !reflect.DeepEqual(s1, want1) {
+	if !s1.Equals(want1) {
 		t.Errorf("got %v; want %v", s1, want1)
 	}
 
 	s2 := NewSet([]string{"a", "b", "c", "longer string"})
 	s2.Add("a")
 	want2 := NewSet([]string{"a", "b", "c", "longer string"})
-	if !reflect.DeepEqual(s2, want2) {
+	if !s2.Equals(want2) {
 		t.Errorf("got %v; want %v", s2, want2)
 	}
 
 	s2.Add("d")
 	want2 = NewSet([]string{"a", "b", "c", "longer string", "d"})
-	if !reflect.DeepEqual(s2, want2) {
+	if !s2.Equals(want2) {
 		t.Errorf("got %v; want %v", s2, want2)
 	}
 }
@@ -99,7 +98,7 @@ func TestUnionInt(t *testing.T) {
 		t.Run(tC.desc, func(t *testing.T) {
 			got := tC.in1.Union(tC.in2)
 
-			if !reflect.DeepEqual(tC.want, got) {
+			if !tC.want.Equals(got) {
 				t.Errorf("got %v; want %v", tC.want, got)
 			}
 		})

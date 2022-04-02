@@ -152,14 +152,17 @@ func (s *Set) IsEmpty() bool {
 	return s.Len() == 0
 }
 
+// under_lower_bound returns true if `item` is below the smallest item in the set
 func (s *Set) under_lower_bound(item int) bool {
 	return item < s.smallest_item
 }
 
+// over_upper_bound returns true if `item` is above the largest item in the set
 func (s *Set) over_upper_bound(item int) bool {
 	return item > s.get_upper_value()
 }
 
+// get_upper_value returns the largets value in the set
 func (s *Set) get_upper_value() int {
 	return s.smallest_item + len(s.bits) - 1
 }
@@ -308,6 +311,50 @@ func (s *Set) Discard(item int) {
 	}
 }
 
+// Pop will remove and return an arbitrary item from the set. If the set is empty,
+// it will return an error
+func (s *Set) Pop() (item int, err error) {
+	if s.IsEmpty() {
+		return item, ErrElementNotFound
+	}
+
+	// Get the first item
+	item = s.smallest_item
+
+	// Discard it
+	s.Discard(item)
+
+	return item, nil
+}
+
+// Clear will remove all items from the set
+func (s *Set) Clear() {
+	s.bits = make([]bool, 0)
+	s.n_items = 0
+	s.smallest_item = 0
+}
+
+// Copy makes a deep copy as quickly as possible
+func (s *Set) Copy() Set {
+	// Copy the `bits` slice
+	bits := make([]bool, len(s.bits))
+	copy(bits, s.bits)
+
+	// Copy the `n_items` field
+	n_items := s.n_items
+
+	// Copy the `smallest_item` field
+	smallest_item := s.smallest_item
+
+	// Create a new set with the copied values
+	return Set{
+		bits:          bits,
+		n_items:       n_items,
+		smallest_item: smallest_item,
+	}
+
+}
+
 // Equals will return true if `s` and `t` are
 // - the same length
 // - contain the same elements
@@ -328,4 +375,55 @@ func (s *Set) Equals(t Set) bool {
 	}
 
 	return true
+}
+
+// Union will create a new Set, and fill it with the union of `s` and `t`
+func (s *Set) Union(t Set) Set {
+	// What will be the min and max of the new set
+	min := s.smallest_item
+	if t.smallest_item < min {
+		min = t.smallest_item
+	}
+
+	max := s.get_upper_value()
+	if t.get_upper_value() > max {
+		max = t.get_upper_value()
+	}
+
+	len_new_bit_slice := max - min + 1
+	new_bits := make([]bool, len_new_bit_slice)
+
+	// Can copy the slice of bools directly from whichever has the smaller `smallest_item`
+	// Either way, all of `s` or all of `t` will be copied over. Then just need to copy
+	// the other
+	if min == s.smallest_item {
+		copy(new_bits, s.bits)
+		// What's the offset of `t` from the new start
+		t_offset := t.smallest_item - min
+		for idx, v := range t.bits {
+			if v {
+				new_bits[t_offset+idx] = true
+			}
+		}
+
+	} else {
+		copy(new_bits, t.bits)
+		// What's the offset of `s` from the new start
+		s_offset := s.smallest_item - min
+		for idx, v := range s.bits {
+			if v {
+				new_bits[s_offset+idx] = true
+			}
+		}
+	}
+
+	// How many items in the new set
+	n_items := 0
+	for _, v := range new_bits {
+		if v {
+			n_items += 1
+		}
+	}
+
+	return Set{bits: new_bits, smallest_item: min, n_items: n_items}
 }
