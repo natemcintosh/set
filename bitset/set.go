@@ -429,9 +429,64 @@ func (s *Set) Union(t Set) Set {
 }
 
 // UnionInPlace will add all the items in set `t` to set `s`
-func (s *Set) UnionInPlace(t Set) {
-	// First add any items in `t` that are above the smallest item in `s`
+// func (s *Set) UnionInPlace(t Set) {
+// 	// First add any items in `t` that are above the smallest item in `s`, and below the
+// 	// end of `s.bits`
+// 	t_offset := t.smallest_item - s.smallest_item
+// 	for t_idx, v := range t.bits {
+// 		if v && (t_idx+t_offset >= 0) && (t_idx+t_offset < len(s.bits)-1) {
+// 			s.bits[t_idx+t_offset] = true
+// 		}
+// 	}
 
-	// If `t` has any items below the smallest item in `s`, then create a new slice for
-	// everything underneath, and append the old slice to the new one.
+// 	// If `t` has no items below the smallest item in `s`, don't continue
+
+// 	// then create a new slice for
+// 	// everything, and copy the old slice to the new one.
+// 	if t_offset < 0 {
+// 		return
+// 	}
+// 	new_len := abs(t_offset) + len(s.bits)
+// 	new_bits := make([]bool, new_len)
+// }
+
+// number_to_bitset_representation will take an int and return the following
+//
+// - `is_positive`: true if n >= 0
+//
+// - `multiplier`: how many times 64 goes into n: abs(n) / 64
+//
+// - `slot`: using an uint64 to represent the 64 bins for the remainder: abs(n) % 64
+func number_to_bitset_representation(n int) (
+	is_positive bool,
+	multiplier uint64,
+	slot uint64,
+) {
+	if n >= 0 {
+		is_positive = true
+		multiplier = uint64(n) / 64
+		if n%64 == 0 {
+			slot = uint64(0)
+		} else {
+			slot = two_to_power_n_minus_1(n % 64)
+		}
+	} else {
+		is_positive = false
+		multiplier = uint64(-n) / 64
+		if -n%64 == 0 {
+			slot = 0
+		} else {
+			slot = two_to_power_n_minus_1(-n % 64)
+		}
+	}
+	return
+}
+
+func two_to_power_n_minus_1(n int) uint64 {
+	// Could maybe also use 1 << (n-1)?
+	var result uint64 = 1
+	for i := 0; i < n-1; i++ {
+		result *= 2
+	}
+	return result
 }

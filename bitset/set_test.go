@@ -830,3 +830,164 @@ func FuzzUnion(f *testing.F) {
 		}
 	})
 }
+
+// func FuzzUnionInPlace(f *testing.F) {
+// 	// We are hoping to find out of bounds panics with this fuzz test
+// 	// We are also checking that both set and bitset produce the same result
+// 	f.Add(-2, 0, 3, 4, 5, 6, 7, 8, 9, 10)
+// 	f.Add(-10, -4, -5, -11, -20, 12, 16, 13, 34, 35)
+
+// 	f.Fuzz(func(
+// 		t *testing.T,
+// 		s1 int,
+// 		s2 int,
+// 		s3 int,
+// 		s4 int,
+// 		s5 int,
+// 		s6 int,
+// 		s7 int,
+// 		s8 int,
+// 		s9 int,
+// 		s10 int,
+// 	) {
+// 		// Create the sets
+// 		bitset1 := NewSet([]int{s1, s2, s3, s4, s5})
+// 		bitset2 := NewSet([]int{s6, s7, s8, s9, s10})
+
+// 		set1 := set.NewSet([]int{s1, s2, s3, s4, s5})
+// 		set2 := set.NewSet([]int{s6, s7, s8, s9, s10})
+
+// 		// Take the union
+// 		bitset1.UnionInPlace(bitset2)
+// 		set1.UnionInPlace(set2)
+
+// 		// Convert them to slices to compare
+// 		bitslice := bitset1.Slice()
+// 		slice := set1.Slice()
+// 		slices.Sort(slice)
+
+// 		if !equal(bitslice, slice) {
+// 			t.Errorf("bit set %v did not match set %v", bitslice, slice)
+// 		}
+// 	})
+// }
+
+func TestNumber_to_bitset_representation(t *testing.T) {
+	testCases := []struct {
+		desc             string
+		in               int
+		want_is_positive bool
+		want_multiplier  uint64
+		want_rem_slot    uint64
+	}{
+		{
+			desc:             "0",
+			in:               0,
+			want_is_positive: true,
+			want_multiplier:  0,
+			want_rem_slot:    0,
+		},
+		{
+			desc:             "-1",
+			in:               -1,
+			want_is_positive: false,
+			want_multiplier:  0,
+			want_rem_slot:    1,
+		},
+		{
+			desc:             "-10",
+			in:               -10,
+			want_is_positive: false,
+			want_multiplier:  0,
+			want_rem_slot:    512,
+		},
+		{
+			desc:             "63",
+			in:               63,
+			want_is_positive: true,
+			want_multiplier:  0,
+			want_rem_slot:    4611686018427387904,
+		},
+		{
+			desc:             "64",
+			in:               64,
+			want_is_positive: true,
+			want_multiplier:  1,
+			want_rem_slot:    0,
+		},
+		{
+			desc:             "-64",
+			in:               -64,
+			want_is_positive: false,
+			want_multiplier:  1,
+			want_rem_slot:    0,
+		},
+		{
+			desc:             "155",
+			in:               155,
+			want_is_positive: true,
+			want_multiplier:  2,
+			want_rem_slot:    67108864,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			is_positive, multiplier, rem_slot := number_to_bitset_representation(tC.in)
+
+			if is_positive != tC.want_is_positive {
+				t.Errorf("Sign is wrong way: got %v; want %v", is_positive, tC.want_is_positive)
+			}
+
+			if multiplier != tC.want_multiplier {
+				t.Errorf("Multiplier is incorrect: got %v; want %v", multiplier, tC.want_multiplier)
+			}
+
+			if rem_slot != tC.want_rem_slot {
+				t.Errorf("Remainder slot is incorrect: got %v; want %v", rem_slot, tC.want_rem_slot)
+			}
+		})
+	}
+}
+
+func BenchmarkNumber_to_bitset_representation(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		in   int
+	}{
+		{
+			desc: "0",
+			in:   0,
+		},
+		{
+			desc: "-1",
+			in:   -1,
+		},
+		{
+			desc: "-10",
+			in:   -10,
+		},
+		{
+			desc: "63",
+			in:   63,
+		},
+		{
+			desc: "64",
+			in:   64,
+		},
+		{
+			desc: "-64",
+			in:   -64,
+		},
+		{
+			desc: "155",
+			in:   155,
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				number_to_bitset_representation(bC.in)
+			}
+		})
+	}
+}
