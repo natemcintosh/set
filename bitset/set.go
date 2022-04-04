@@ -427,3 +427,11 @@ func (s *Set) Union(t Set) Set {
 
 	return Set{bits: new_bits, smallest_item: min, n_items: n_items}
 }
+
+// UnionInPlace will add all the items in set `t` to set `s`
+func (s *Set) UnionInPlace(t Set) {
+	// First add any items in `t` that are above the smallest item in `s`
+
+	// If `t` has any items below the smallest item in `s`, then create a new slice for
+	// everything underneath, and append the old slice to the new one.
+}
