@@ -1,12 +1,27 @@
 # bitset
 
 This module is inspired by the julia language's BitSet type and it's methods. This is
-currently implemented as a slice of `bool`s, each index representing a spot on the
-numberline. It is designed for dense integer sets. If the set will be sparse (for 
-example, holding a few very large integers), use `set` instead. For dense integer sets,
-`bitset` can be significantly faster than `set`.
+currently implemented as
+```go
+type key struct {
+	is_positive bool
+	multiplier  uint64
+}
 
-### Future Improvements
-Julia uses a `Vector{UInt64}` so that bitwise operations can be used. Ideally switch to
-a `[]uint64`, the go equivalent of what julia uses to also take advantage of fast
-bitwise operations.
+type Set struct {
+	data map[key]uint64
+}
+```
+The `uint64` in the value of the map is used as a container; each bit indicates if a
+number is stored in that index. The two fields in the `key` struct tell you which chunk
+of 64 consecutive numbers is stored in that `uint64`.
+
+This is a "hybrid" approach.
+
+Cons:
+1. We have to use a map as the underlying data container
+1. We lose the possibility of straight iteration over all the bits in the set
+
+Pros:
+1. We can handle sparse sets relatively well
+1. We still get access to bit operations for fast comparisons of `uint64` containers
