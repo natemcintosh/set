@@ -450,6 +450,52 @@ func (s *Set) Union(t Set) Set {
 // 	new_bits := make([]bool, new_len)
 // }
 
+type key struct {
+	is_positive bool
+	multiplier  uint64
+}
+
+type USet struct {
+	data map[key]uint64
+}
+
+func NewUSet[S ~[]int](data S) USet {
+	// Create the underlying set
+	uset := make(map[key]uint64)
+
+	for _, v := range data {
+		// Get the new data representation
+		is_positive, multiplier, slot := number_to_bitset_representation(v)
+
+		// Create the key for the map
+		key := key{
+			is_positive: is_positive,
+			multiplier:  multiplier,
+		}
+
+		// Union if it already exists, else just add it
+		if bits, ok := uset[key]; ok {
+			uset[key] = bits | slot
+		} else {
+			uset[key] = slot
+		}
+	}
+
+	return USet{data: uset}
+}
+
+// func (u USet) String() string {
+// 	var b strings.Builder
+// 	b.WriteRune('}')
+// 	for key, bits := range u.data {
+// 		// For each bit in `bits`, want to extract the index of the bit if it is 1
+// 		// and then add it to the string
+
+// 	}
+// 	b.WriteRune('}')
+// 	return b.String()
+// }
+
 // number_to_bitset_representation will take an int and return the following
 //
 // - `is_positive`: true if n >= 0
@@ -483,10 +529,5 @@ func number_to_bitset_representation(n int) (
 }
 
 func two_to_power_n_minus_1(n int) uint64 {
-	// Could maybe also use 1 << (n-1)?
-	var result uint64 = 1
-	for i := 0; i < n-1; i++ {
-		result *= 2
-	}
-	return result
+	return 1 << uint64(n-1)
 }
