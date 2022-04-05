@@ -210,3 +210,32 @@ func (s *Set) Add(item int) {
 		s.data[key] = slot
 	}
 }
+
+// Remove removes an item from the set. Returns an error if the item doesn't exist
+func (s *Set) Remove(item int) error {
+	if len(s.data) == 0 {
+		return ErrElementNotFound
+	}
+
+	// Get the new data representation
+	is_positive, multiplier, slot := number_to_bitset_representation(item)
+
+	key := key{is_positive: is_positive, multiplier: multiplier}
+
+	if bits, ok := s.data[key]; !ok {
+		// This uint64 doesn't exist in the map
+		return ErrElementNotFound
+	} else {
+		if bits&slot == 0 {
+			// Was not found in this uint64
+			return ErrElementNotFound
+		}
+		// Remove the element
+		s.data[key] = bits ^ slot
+	}
+	return nil
+}
+
+func disp_diff(x, y uint64) {
+	fmt.Printf("x =\t\t%064b\nto_remove =\t%064b\nresult =\t%064b", x, y, x^y)
+}
