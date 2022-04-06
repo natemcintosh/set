@@ -1078,3 +1078,160 @@ func BenchmarkNumber_to_bitset_representation(b *testing.B) {
 		})
 	}
 }
+
+func TestIntersection(t *testing.T) {
+
+	testCases := []struct {
+		desc string
+		s1   Set
+		s2   Set
+		want Set
+	}{
+		{
+			desc: "no intersection",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+			want: NewSet([]int{}),
+		},
+		{
+			desc: "some intersection",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+			want: NewSet([]int{5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "all intersection",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "a fuzz case",
+			s1:   NewSet([]int{6129484611666145821, 4037200794235010051, 5577006791947779410, 8674665223082153551}),
+			s2:   NewSet([]int{3916589616287113937, 6334824724549167320, 605394647632969758, 1443635317331776148, 894385949183117216, 2775422040480279449}),
+			want: NewSet([]int{}),
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			if got := tC.s1.Intersection(tC.s2); !got.Equals(tC.want) {
+				t.Errorf("got %v, want %v", got, tC.want)
+			}
+		})
+	}
+}
+
+func BenchmarkIntersectionInt(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		in1  Set
+		in2  Set
+	}{
+		{
+			desc: "entirely overlapping",
+			in1:  NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			in2:  NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "some overlap",
+			in1:  NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			in2:  NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+		},
+		{
+			desc: "no overlap",
+			in1:  NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			in2:  NewSet([]int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.in1.Intersection(bC.in2)
+			}
+		})
+	}
+}
+
+func FuzzIntersection(f *testing.F) {
+	// This fuzz test is for checking that Intersection always matches between the two
+	// set types
+	f.Add(2)
+	f.Add(10)
+
+	f.Fuzz(func(t *testing.T, _n int) {
+		n := abs(_n)
+		items := make([]int, n)
+		// Create n random ints
+		for i := 0; i < n; i++ {
+			items[i] = rand.Int()
+		}
+
+		// Create the sets
+		var split_point int
+		if n < 2 {
+			split_point = 0
+		} else {
+			split_point = rand.Intn(len(items))
+		}
+		bitset1 := NewSet(items[:split_point])
+		bitset2 := NewSet(items[split_point:])
+		set1 := set.NewSet(items[:split_point])
+		set2 := set.NewSet(items[split_point:])
+
+		// Take the intersection
+		bitintersection := bitset1.Intersection(bitset2)
+		setintersection := set1.Intersection(set2)
+
+		// Convert them to slices to compare
+		bitslice := bitintersection.Slice()
+		slice := setintersection.Slice()
+		slices.Sort(bitslice)
+		slices.Sort(slice)
+
+		if !equal(bitslice, slice) {
+			t.Errorf("bit set %v did not match set %v\nSet 1 = %v\nSet 2 = %v", bitslice, slice, bitset1, bitset2)
+		}
+	})
+}
+
+func FuzzIntersectionInPlace(f *testing.F) {
+	// This fuzz test is for checking that IntersectionInPlace always matches between the two
+	// set types
+	f.Add(2)
+	f.Add(10)
+
+	f.Fuzz(func(t *testing.T, _n int) {
+		n := abs(_n)
+		items := make([]int, n)
+		// Create n random ints
+		for i := 0; i < n; i++ {
+			items[i] = rand.Int()
+		}
+
+		// Create the sets
+		var split_point int
+		if n < 2 {
+			split_point = 0
+		} else {
+			split_point = rand.Intn(len(items))
+		}
+		bitset1 := NewSet(items[:split_point])
+		bitset2 := NewSet(items[split_point:])
+		set1 := set.NewSet(items[:split_point])
+		set2 := set.NewSet(items[split_point:])
+
+		// Take the intersection
+		bitset1.Intersection(bitset2)
+		set1.Intersection(set2)
+
+		// Convert them to slices to compare
+		bitslice := bitset1.Slice()
+		slice := set1.Slice()
+		slices.Sort(bitslice)
+		slices.Sort(slice)
+
+		if !equal(bitslice, slice) {
+			t.Errorf("bit set %v did not match set %v\nSet 1 = %v\nSet 2 = %v", bitslice, slice, bitset1, bitset2)
+		}
+	})
+}

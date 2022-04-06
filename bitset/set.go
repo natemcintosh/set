@@ -310,10 +310,8 @@ func (s *Set) Equals(t Set) bool {
 	for skey, sbits := range s.data {
 		if tbits, ok := t.data[skey]; !ok {
 			return false
-		} else {
-			if sbits != tbits {
-				return false
-			}
+		} else if sbits != tbits {
+			return false
 		}
 	}
 
@@ -373,6 +371,46 @@ func (s *Set) UnionInPlace(t Set) {
 			s.data[tkey] = sslots | tslots
 		} else {
 			s.data[tkey] = tslots
+		}
+	}
+}
+
+// Intersection will create a new Set, and fill it with the intersection of `s` and `t`
+func (s *Set) Intersection(t Set) Set {
+	// Create an empty set result
+	data := make(map[key]uint64)
+
+	// Iterate over the smaller of the two sets, and add the item to `result` if it is
+	// in the larger of the two sets
+	if s.Len() < t.Len() {
+		for skey, sslots := range s.data {
+			// Get the key from t (if it exists)
+			if tslots, ok := t.data[skey]; ok {
+				if (sslots & tslots) != 0 {
+					data[skey] = sslots & tslots
+				}
+			}
+		}
+	} else {
+		for tkey, tslots := range t.data {
+			// Get the key from s (if it exists)
+			if sslots, ok := s.data[tkey]; ok {
+				if (sslots & tslots) != 0 {
+					data[tkey] = sslots & tslots
+				}
+			}
+		}
+	}
+
+	return Set{data: data}
+}
+
+// IntersectionInPlace will remove any items from `s` that are not in `t`
+func (s *Set) IntersectionInPlace(t Set) {
+	for tkey, tslots := range t.data {
+		// Get the key from s (if it exists)
+		if sslots, ok := s.data[tkey]; ok {
+			s.data[tkey] = sslots & tslots
 		}
 	}
 }
