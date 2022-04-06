@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/natemcintosh/set"
 	"golang.org/x/exp/slices"
 )
 
@@ -383,7 +384,7 @@ func BenchmarkContains(b *testing.B) {
 }
 
 func FuzzContains(f *testing.F) {
-	// We are hoping to find out of bounds panics with this fuzz test
+	// We are hoping to find cases where bitset does not match set
 	f.Add(2)
 	f.Add(10)
 
@@ -393,14 +394,24 @@ func FuzzContains(f *testing.F) {
 		items := make([]int, n)
 		// Create n random ints
 		for i := 0; i < n; i++ {
-			items[i] = rand.Int()
+			if _n > 0 {
+				items[i] = rand.Int()
+			} else {
+				items[i] = -rand.Int()
+			}
 		}
-		// Create the set
-		set := NewSet(items)
+		// Create the bitset
+		set := set.NewSet(items)
+		bitset := NewSet(items)
 
-		// Run Contains, hoping to find panics
+		// Run Contains, hope to find differences between the two sets
 		to_find := rand.Int()
-		set.Contains(to_find)
+		bitset_found := bitset.Contains(to_find)
+		set_found := set.Contains(to_find)
+
+		if bitset_found != set_found {
+			t.Errorf("bitset and set Contains() did not match")
+		}
 
 	})
 }
@@ -520,440 +531,433 @@ func BenchmarkAdd(b *testing.B) {
 
 func FuzzAdd(f *testing.F) {
 	// We are hoping to find panics with this fuzz test
-	f.Add(-2, 0, 3, 4, 5, 6, 7, 8, 9, 10)
-	f.Add(-10, -4, -5, -11, -20, 12, 16, 13, 34, 35)
+	f.Add(2)
+	f.Add(10)
 
-	f.Fuzz(func(
-		t *testing.T,
-		s1 int,
-		s2 int,
-		s3 int,
-		s4 int,
-		s5 int,
-		s6 int,
-		s7 int,
-		s8 int,
-		s9 int,
-		s10 int,
-	) {
-		// Create the set
-		set := NewSet([]int{s1, s2, s3, s4, s5, s6, s7, s8, s9})
+	f.Fuzz(func(t *testing.T, _n int) {
+		n := abs(_n)
+		items := make([]int, n)
+		// Create n random ints
+		for i := 0; i < n; i++ {
+			if _n > 0 {
+				items[i] = rand.Int()
+			} else {
+				items[i] = -rand.Int()
+			}
+		}
+		// Create the bitset
+		set := set.NewSet(items)
+		bitset := NewSet(items)
 
-		// Run Add, hoping to find panics
-		set.Add(s10)
+		// Add a new item
+		to_add := rand.Int()
+		set.Add(to_add)
+		bitset.Add(to_add)
+
+		// Check that both sets are the same
+		setslice := set.Slice()
+		bitsetslice := bitset.Slice()
+
+		slices.Sort(setslice)
+		slices.Sort(bitsetslice)
+
+		if !equal(setslice, bitsetslice) {
+			t.Errorf("set and bitset did not match after adding element %d", to_add)
+		}
 
 	})
 }
 
-// func TestRemove(t *testing.T) {
-// 	testCases := []struct {
-// 		desc               string
-// 		s                  Set
-// 		v                  int
-// 		want_set           Set
-// 		want_err_value     error
-// 		want_smallest_item int
-// 	}{
-// 		{
-// 			desc:               "valid remove",
-// 			s:                  NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-// 			v:                  5,
-// 			want_set:           NewSet([]int{1, 2, 3, 4, 6, 7, 8, 9, 10}),
-// 			want_err_value:     nil,
-// 			want_smallest_item: 1,
-// 		},
-// 		{
-// 			desc:               "invalid remove",
-// 			s:                  NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-// 			v:                  11,
-// 			want_set:           NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-// 			want_err_value:     ErrElementNotFound,
-// 			want_smallest_item: 1,
-// 		},
-// 		{
-// 			desc:               "smallest item",
-// 			s:                  NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-// 			v:                  1,
-// 			want_set:           NewSet([]int{2, 3, 4, 5, 6, 7, 8, 9, 10}),
-// 			want_err_value:     nil,
-// 			want_smallest_item: 2,
-// 		},
-// 		{
-// 			desc:               "largest item",
-// 			s:                  NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-// 			v:                  10,
-// 			want_set:           NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9}),
-// 			want_err_value:     nil,
-// 			want_smallest_item: 1,
-// 		},
-// 	}
-// 	for _, tC := range testCases {
-// 		t.Run(tC.desc, func(t *testing.T) {
-// 			err := tC.s.Remove(tC.v)
-// 			if err != tC.want_err_value {
-// 				t.Errorf("got error %v, want %v", err, tC.want_err_value)
-// 			}
-// 			if !tC.s.Equals(tC.want_set) {
-// 				t.Errorf("got %v, want %v", tC.s, tC.want_set)
-// 			}
-// 			if tC.want_smallest_item != tC.s.smallest_item {
-// 				t.Errorf("smallest item is %v; should be %v", tC.s.smallest_item, tC.want_smallest_item)
-// 			}
-// 		})
-// 	}
-// }
+func TestRemove(t *testing.T) {
+	testCases := []struct {
+		desc           string
+		s              Set
+		v              int
+		want_set       Set
+		want_err_value error
+	}{
+		{
+			desc:           "valid remove",
+			s:              NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:              5,
+			want_set:       NewSet([]int{1, 2, 3, 4, 6, 7, 8, 9, 10}),
+			want_err_value: nil,
+		},
+		{
+			desc:           "invalid remove",
+			s:              NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:              11,
+			want_set:       NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want_err_value: ErrElementNotFound,
+		},
+		{
+			desc:           "smallest item",
+			s:              NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:              1,
+			want_set:       NewSet([]int{2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want_err_value: nil,
+		},
+		{
+			desc:           "largest item",
+			s:              NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:              10,
+			want_set:       NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9}),
+			want_err_value: nil,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			err := tC.s.Remove(tC.v)
+			if err != tC.want_err_value {
+				t.Errorf("got error %v, want %v", err, tC.want_err_value)
+			}
+			if !tC.s.Equals(tC.want_set) {
+				t.Errorf("got %v, want %v", tC.s, tC.want_set)
+			}
 
-// func FuzzRemoveDiscard(f *testing.F) {
-// 	// We are hoping to find out of bounds panics with this fuzz test
-// 	f.Add(-2, 0, 3, 4, 5, 6, 7, 8, 9, 10)
-// 	f.Add(-10, -4, -5, -11, -20, 12, 16, 13, 34, 35)
+		})
+	}
+}
 
-// 	f.Fuzz(func(
-// 		t *testing.T,
-// 		s1 int,
-// 		s2 int,
-// 		s3 int,
-// 		s4 int,
-// 		s5 int,
-// 		s6 int,
-// 		s7 int,
-// 		s8 int,
-// 		s9 int,
-// 		s10 int,
-// 	) {
-// 		// Create the set
-// 		set := NewSet([]int{s1, s2, s3, s4, s5, s6, s7, s8, s9})
+func FuzzRemoveDiscard(f *testing.F) {
+	// We are hoping to find places where
+	f.Add(2)
+	f.Add(10)
 
-// 		prev_smallest := set.smallest_item
-// 		prev_largest := set.get_upper_value()
+	f.Fuzz(func(t *testing.T, _n int) {
+		n := abs(_n)
+		items := make([]int, n)
+		// Create n random ints
+		for i := 0; i < n; i++ {
+			if _n > 0 {
+				items[i] = rand.Int()
+			} else {
+				items[i] = -rand.Int()
+			}
+		}
+		// Create the bitset
+		set := set.NewSet(items)
+		bitset := NewSet(items)
 
-// 		// Run Add, hoping to find panics
-// 		set.Remove(s10)
+		// Remove a new item
+		to_remove := rand.Int()
+		set.Remove(to_remove)
+		bitset.Remove(to_remove)
 
-// 		// If s10 == the smallest item in the set, then check that the smallest item
-// 		// is no longer equal to that
-// 		if (s10 == prev_smallest) && (s10 == set.smallest_item) {
-// 			t.Errorf("The smallest item was removed, but the internal field has not been updated")
-// 		}
+		// Check that both sets are the same
+		setslice := set.Slice()
+		bitsetslice := bitset.Slice()
 
-// 		// If s10 == the largest item in the set, then check that the largest item is
-// 		// no longer equal to that
-// 		if (s10 == prev_largest) && (s10 == set.get_upper_value()) {
-// 			t.Errorf("The largest item was removed, but the slice hasn't been updated")
-// 		}
+		slices.Sort(setslice)
+		slices.Sort(bitsetslice)
 
-// 		// Recreate set and redo with Discard
-// 		set = NewSet([]int{s1, s2, s3, s4, s5, s6, s7, s8, s9})
+		if !equal(setslice, bitsetslice) {
+			t.Errorf("set and bitset did not match after removing element %d", to_remove)
+		}
 
-// 		prev_smallest = set.smallest_item
-// 		prev_largest = set.get_upper_value()
+		// Discard an item from both sets
+		to_discard := rand.Int()
+		set.Discard(to_discard)
+		bitset.Discard(to_discard)
 
-// 		// Run Add, hoping to find panics
-// 		set.Remove(s10)
+		// Check that both sets are the same
+		setslice = set.Slice()
+		bitsetslice = bitset.Slice()
 
-// 		// If s10 == the smallest item in the set, then check that the smallest item
-// 		// is no longer equal to that
-// 		if (s10 == prev_smallest) && (s10 == set.smallest_item) {
-// 			t.Errorf("The smallest item was discarded, but the internal field has not been updated")
-// 		}
+		slices.Sort(setslice)
+		slices.Sort(bitsetslice)
 
-// 		// If s10 == the largest item in the set, then check that the largest item is
-// 		// no longer equal to that
-// 		if (s10 == prev_largest) && (s10 == set.get_upper_value()) {
-// 			t.Errorf("The largest item was discarded, but the slice hasn't been updated")
-// 		}
+		if !equal(setslice, bitsetslice) {
+			t.Errorf("set and bitset did not match after discarding element %d", to_discard)
+		}
 
-// 	})
-// }
+	})
+}
 
-// func BenchmarkRemove(b *testing.B) {
-// 	benchCases := []struct {
-// 		desc string
-// 		s    Set
-// 		v    int
-// 	}{
-// 		{
-// 			desc: "valid remove",
-// 			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-// 			v:    5,
-// 		},
-// 		{
-// 			desc: "invalid remove",
-// 			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-// 			v:    11,
-// 		},
-// 		{
-// 			desc: "smallest item",
-// 			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-// 			v:    1,
-// 		},
-// 		{
-// 			desc: "largest item",
-// 			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-// 			v:    10,
-// 		},
-// 	}
-// 	for _, bC := range benchCases {
-// 		b.Run(bC.desc, func(b *testing.B) {
-// 			for i := 0; i < b.N; i++ {
-// 				bC.s.Remove(bC.v)
-// 			}
-// 		})
-// 	}
-// }
+func BenchmarkRemove(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		s    Set
+		v    int
+	}{
+		{
+			desc: "valid remove",
+			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:    5,
+		},
+		{
+			desc: "invalid remove",
+			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:    11,
+		},
+		{
+			desc: "smallest item",
+			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:    1,
+		},
+		{
+			desc: "largest item",
+			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:    10,
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.s.Remove(bC.v)
+			}
+		})
+	}
+}
 
-// func BenchmarkDiscard(b *testing.B) {
-// 	benchCases := []struct {
-// 		desc string
-// 		s    Set
-// 		v    int
-// 	}{
-// 		{
-// 			desc: "valid remove",
-// 			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-// 			v:    5,
-// 		},
-// 		{
-// 			desc: "invalid remove",
-// 			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-// 			v:    11,
-// 		},
-// 		{
-// 			desc: "smallest item",
-// 			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-// 			v:    1,
-// 		},
-// 		{
-// 			desc: "largest item",
-// 			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-// 			v:    10,
-// 		},
-// 	}
-// 	for _, bC := range benchCases {
-// 		b.Run(bC.desc, func(b *testing.B) {
-// 			for i := 0; i < b.N; i++ {
-// 				bC.s.Discard(bC.v)
-// 			}
-// 		})
-// 	}
-// }
+func BenchmarkDiscard(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		s    Set
+		v    int
+	}{
+		{
+			desc: "valid remove",
+			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:    5,
+		},
+		{
+			desc: "invalid remove",
+			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:    11,
+		},
+		{
+			desc: "smallest item",
+			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:    1,
+		},
+		{
+			desc: "largest item",
+			s:    NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			v:    10,
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.s.Discard(bC.v)
+			}
+		})
+	}
+}
 
-// func TestPop(t *testing.T) {
-// 	testCases := []struct {
-// 		desc     string
-// 		s        Set
-// 		want_err error
-// 	}{
-// 		{
-// 			desc:     "valid pop",
-// 			s:        NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-// 			want_err: nil,
-// 		},
-// 		{
-// 			desc:     "invalid pop",
-// 			s:        NewSet([]int{}),
-// 			want_err: ErrElementNotFound,
-// 		},
-// 	}
-// 	for _, tC := range testCases {
-// 		t.Run(tC.desc, func(t *testing.T) {
-// 			original_len := tC.s.Len()
-// 			_, err := tC.s.Pop()
-// 			if err != tC.want_err {
-// 				t.Errorf("got error %v, want %v", err, tC.want_err)
-// 			}
-// 			// if the error is nil, check that the length is one less than before
-// 			if err == nil && tC.s.Len() != original_len-1 {
-// 				t.Errorf("got %v, want %v", tC.s.Len(), original_len-1)
-// 			}
-// 		})
-// 	}
-// }
+func TestPop(t *testing.T) {
+	testCases := []struct {
+		desc     string
+		s        Set
+		want_err error
+	}{
+		{
+			desc:     "valid pop",
+			s:        NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want_err: nil,
+		},
+		{
+			desc:     "invalid pop",
+			s:        NewSet([]int{}),
+			want_err: ErrElementNotFound,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			original_len := tC.s.Len()
+			_, err := tC.s.Pop()
+			if err != tC.want_err {
+				t.Errorf("got error %v, want %v", err, tC.want_err)
+			}
+			// if the error is nil, check that the length is one less than before
+			if err == nil && tC.s.Len() != original_len-1 {
+				t.Errorf("got %v, want %v", tC.s.Len(), original_len-1)
+			}
+		})
+	}
+}
 
-// func TestClear(t *testing.T) {
-// 	s := NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
-// 	s.Clear()
-// 	if !s.IsEmpty() {
-// 		t.Errorf("got %v, want empty", s)
-// 	}
-// }
+func TestClear(t *testing.T) {
+	s := NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+	s.Clear()
+	if !s.IsEmpty() {
+		t.Errorf("got %v, want empty", s)
+	}
+}
 
-// func BenchmarkMonteCarloRuns(b *testing.B) {
-// 	// Create a set of numbers from 1 to 1,000
-// 	mcslice := make([]int, 1000)
-// 	// Fill it with numbers from 1 to 1,000
-// 	for i := 0; i < 1000; i++ {
-// 		mcslice[i] = i + 1
-// 	}
-// 	// Create a set from the slice
-// 	mcs := NewSet(mcslice)
+func BenchmarkMonteCarloRuns(b *testing.B) {
+	// Create a set of numbers from 1 to 1,000
+	mcslice := make([]int, 1000)
+	// Fill it with numbers from 1 to 1,000
+	for i := 0; i < 1000; i++ {
+		mcslice[i] = i + 1
+	}
+	// Create a set from the slice
+	mcs := NewSet(mcslice)
 
-// 	// Create a set that is a subset of `mcs`
-// 	mcs_subset := mcs.Copy()
-// 	mcs_subset.Discard(1)
-// 	mcs_subset.Discard(20)
-// 	mcs_subset.Discard(50)
-// 	mcs_subset.Discard(143)
-// 	mcs_subset.Discard(999)
+	// Create a set that is a subset of `mcs`
+	mcs_subset := mcs.Copy()
+	mcs_subset.Discard(1)
+	mcs_subset.Discard(20)
+	mcs_subset.Discard(50)
+	mcs_subset.Discard(143)
+	mcs_subset.Discard(999)
 
-// 	// Reset the benchmark timer
-// 	b.ResetTimer()
+	// Reset the benchmark timer
+	b.ResetTimer()
 
-// 	for i := 0; i < b.N; i++ {
-// 		// Discover which mcs are not in the subset
-// 		mcs.Union(mcs_subset)
-// 	}
-// }
+	for i := 0; i < b.N; i++ {
+		// Discover which mcs are not in the subset
+		mcs.Union(mcs_subset)
+	}
+}
 
-// func TestUnion(t *testing.T) {
-// 	testCases := []struct {
-// 		desc string
-// 		in1  Set
-// 		in2  Set
-// 		want Set
-// 	}{
-// 		{
-// 			desc: "entirely overlapping",
-// 			in1:  NewSet([]int{1, 2, 3}),
-// 			in2:  NewSet([]int{1, 2, 3}),
-// 			want: NewSet([]int{1, 2, 3}),
-// 		},
-// 		{
-// 			desc: "some overlap",
-// 			in1:  NewSet([]int{1, 2, 3}),
-// 			in2:  NewSet([]int{2, 3, 4, 5}),
-// 			want: NewSet([]int{1, 2, 3, 4, 5}),
-// 		},
-// 		{
-// 			desc: "no overlap",
-// 			in1:  NewSet([]int{1, 2, 3}),
-// 			in2:  NewSet([]int{4, 5, 6, 7}),
-// 			want: NewSet([]int{1, 2, 3, 4, 5, 6, 7}),
-// 		},
-// 	}
-// 	for _, tC := range testCases {
-// 		t.Run(tC.desc, func(t *testing.T) {
-// 			got := tC.in1.Union(tC.in2)
+func TestUnion(t *testing.T) {
+	testCases := []struct {
+		desc string
+		in1  Set
+		in2  Set
+		want Set
+	}{
+		{
+			desc: "entirely overlapping",
+			in1:  NewSet([]int{1, 2, 3}),
+			in2:  NewSet([]int{1, 2, 3}),
+			want: NewSet([]int{1, 2, 3}),
+		},
+		{
+			desc: "some overlap",
+			in1:  NewSet([]int{1, 2, 3}),
+			in2:  NewSet([]int{2, 3, 4, 5}),
+			want: NewSet([]int{1, 2, 3, 4, 5}),
+		},
+		{
+			desc: "no overlap",
+			in1:  NewSet([]int{1, 2, 3}),
+			in2:  NewSet([]int{4, 5, 6, 7}),
+			want: NewSet([]int{1, 2, 3, 4, 5, 6, 7}),
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			got := tC.in1.Union(tC.in2)
 
-// 			if !got.Equals(tC.want) {
-// 				t.Errorf("got %v; want %v", tC.want, got)
-// 			}
-// 		})
-// 	}
-// }
+			if !got.Equals(tC.want) {
+				t.Errorf("got %v; want %v", tC.want, got)
+			}
+		})
+	}
+}
 
-// func BenchmarkUnionInt(b *testing.B) {
-// 	benchCases := []struct {
-// 		desc string
-// 		in1  Set
-// 		in2  Set
-// 	}{
-// 		{
-// 			desc: "entirely overlapping",
-// 			in1:  NewSet([]int{1, 2, 3}),
-// 			in2:  NewSet([]int{1, 2, 3}),
-// 		},
-// 		{
-// 			desc: "some overlap",
-// 			in1:  NewSet([]int{1, 2, 3}),
-// 			in2:  NewSet([]int{2, 3, 4, 5}),
-// 		},
-// 		{
-// 			desc: "no overlap",
-// 			in1:  NewSet([]int{1, 2, 3}),
-// 			in2:  NewSet([]int{4, 5, 6, 7}),
-// 		},
-// 	}
-// 	for _, bC := range benchCases {
-// 		b.Run(bC.desc, func(b *testing.B) {
-// 			for i := 0; i < b.N; i++ {
-// 				bC.in1.Union(bC.in2)
-// 			}
-// 		})
-// 	}
-// }
+func BenchmarkUnionInt(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		in1  Set
+		in2  Set
+	}{
+		{
+			desc: "entirely overlapping",
+			in1:  NewSet([]int{1, 2, 3}),
+			in2:  NewSet([]int{1, 2, 3}),
+		},
+		{
+			desc: "some overlap",
+			in1:  NewSet([]int{1, 2, 3}),
+			in2:  NewSet([]int{2, 3, 4, 5}),
+		},
+		{
+			desc: "no overlap",
+			in1:  NewSet([]int{1, 2, 3}),
+			in2:  NewSet([]int{4, 5, 6, 7}),
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.in1.Union(bC.in2)
+			}
+		})
+	}
+}
 
-// func FuzzUnion(f *testing.F) {
-// 	// We are hoping to find out of bounds panics with this fuzz test
-// 	// We are also checking that both set and bitset produce the same result
-// 	f.Add(-2, 0, 3, 4, 5, 6, 7, 8, 9, 10)
-// 	f.Add(-10, -4, -5, -11, -20, 12, 16, 13, 34, 35)
+func FuzzUnion(f *testing.F) {
+	// This fuzz test is for checking that Union always matches between the two set types
+	f.Add(2)
+	f.Add(10)
 
-// 	f.Fuzz(func(
-// 		t *testing.T,
-// 		s1 int,
-// 		s2 int,
-// 		s3 int,
-// 		s4 int,
-// 		s5 int,
-// 		s6 int,
-// 		s7 int,
-// 		s8 int,
-// 		s9 int,
-// 		s10 int,
-// 	) {
-// 		// Create the sets
-// 		bitset1 := NewSet([]int{s1, s2, s3, s4, s5})
-// 		bitset2 := NewSet([]int{s6, s7, s8, s9, s10})
+	f.Fuzz(func(t *testing.T, _n int) {
+		n := abs(_n)
+		items := make([]int, n)
+		// Create n random ints
+		for i := 0; i < n; i++ {
+			items[i] = rand.Int()
+		}
 
-// 		set1 := set.NewSet([]int{s1, s2, s3, s4, s5})
-// 		set2 := set.NewSet([]int{s6, s7, s8, s9, s10})
+		// Create the sets
+		half_way := len(items) / 2
+		bitset1 := NewSet(items[:half_way])
+		bitset2 := NewSet(items[half_way:])
+		set1 := set.NewSet(items[:half_way])
+		set2 := set.NewSet(items[half_way:])
 
-// 		// Take the union
-// 		bitunion := bitset1.Union(bitset2)
-// 		union := set1.Union(set2)
+		// Take the union
+		bitunion := bitset1.Union(bitset2)
+		union := set1.Union(set2)
 
-// 		// Convert them to slices to compare
-// 		bitslice := bitunion.Slice()
-// 		slice := union.Slice()
-// 		slices.Sort(slice)
+		// Convert them to slices to compare
+		bitslice := bitunion.Slice()
+		slice := union.Slice()
+		slices.Sort(bitslice)
+		slices.Sort(slice)
 
-// 		if !equal(bitslice, slice) {
-// 			t.Errorf("bit set %v did not match set %v", bitslice, slice)
-// 		}
-// 	})
-// }
+		if !equal(bitslice, slice) {
+			t.Errorf("bit set %v did not match set %v", bitslice, slice)
+		}
+	})
+}
 
-// func FuzzUnionInPlace(f *testing.F) {
-// 	// We are hoping to find out of bounds panics with this fuzz test
-// 	// We are also checking that both set and bitset produce the same result
-// 	f.Add(-2, 0, 3, 4, 5, 6, 7, 8, 9, 10)
-// 	f.Add(-10, -4, -5, -11, -20, 12, 16, 13, 34, 35)
+func FuzzUnionInPlace(f *testing.F) {
+	// This fuzz test is for checking that UnionInPlace always matches between the two
+	// set types
+	f.Add(2)
+	f.Add(10)
 
-// 	f.Fuzz(func(
-// 		t *testing.T,
-// 		s1 int,
-// 		s2 int,
-// 		s3 int,
-// 		s4 int,
-// 		s5 int,
-// 		s6 int,
-// 		s7 int,
-// 		s8 int,
-// 		s9 int,
-// 		s10 int,
-// 	) {
-// 		// Create the sets
-// 		bitset1 := NewSet([]int{s1, s2, s3, s4, s5})
-// 		bitset2 := NewSet([]int{s6, s7, s8, s9, s10})
+	f.Fuzz(func(t *testing.T, _n int) {
+		n := abs(_n)
+		items := make([]int, n)
+		// Create n random ints
+		for i := 0; i < n; i++ {
+			items[i] = rand.Int()
+		}
 
-// 		set1 := set.NewSet([]int{s1, s2, s3, s4, s5})
-// 		set2 := set.NewSet([]int{s6, s7, s8, s9, s10})
+		// Create the sets
+		var split_point int
+		if n < 2 {
+			split_point = 0
+		} else {
+			split_point = rand.Intn(len(items))
+		}
+		bitset1 := NewSet(items[:split_point])
+		bitset2 := NewSet(items[split_point:])
+		set1 := set.NewSet(items[:split_point])
+		set2 := set.NewSet(items[split_point:])
 
-// 		// Take the union
-// 		bitset1.UnionInPlace(bitset2)
-// 		set1.UnionInPlace(set2)
+		// Take the union
+		bitset1.UnionInPlace(bitset2)
+		set1.UnionInPlace(set2)
 
-// 		// Convert them to slices to compare
-// 		bitslice := bitset1.Slice()
-// 		slice := set1.Slice()
-// 		slices.Sort(slice)
+		// Convert them to slices to compare
+		bitslice := bitset1.Slice()
+		slice := set1.Slice()
+		slices.Sort(bitslice)
+		slices.Sort(slice)
 
-// 		if !equal(bitslice, slice) {
-// 			t.Errorf("bit set %v did not match set %v", bitslice, slice)
-// 		}
-// 	})
-// }
+		if !equal(bitslice, slice) {
+			t.Errorf("bit set %v did not match set %v", bitslice, slice)
+		}
+	})
+}
 
 func TestNumber_to_bitset_representation(t *testing.T) {
 	testCases := []struct {

@@ -236,6 +236,143 @@ func (s *Set) Remove(item int) error {
 	return nil
 }
 
-func disp_diff(x, y uint64) {
-	fmt.Printf("x =\t\t%064b\nto_remove =\t%064b\nresult =\t%064b", x, y, x^y)
+// Discard removes an item from the set. If it doesn't exist, it is ignored
+func (s *Set) Discard(item int) {
+	if len(s.data) == 0 {
+		return
+	}
+
+	// Get the new data representation
+	is_positive, multiplier, slot := number_to_bitset_representation(item)
+
+	key := key{is_positive: is_positive, multiplier: multiplier}
+
+	if bits, ok := s.data[key]; !ok {
+		// This uint64 doesn't exist in the map
+		return
+	} else {
+		// Remove the element
+		s.data[key] = bits ^ slot
+	}
+	return
+}
+
+// Pop will remove and return an arbitrary item from the set. If the set is empty,
+// it will return an error
+func (s *Set) Pop() (item int, err error) {
+	if s.IsEmpty() {
+		return item, ErrElementNotFound
+	}
+
+	var to_return int
+	// Iterate to the first item
+	for key, slots := range s.data {
+		to_return = bits.TrailingZeros64(slots)
+		// Erase that bit
+		s.data[key] &= ^(1 << uint(to_return))
+		break
+	}
+
+	return to_return, nil
+
+}
+
+// Clear will remove all items from the set
+func (s *Set) Clear() {
+	s.data = make(map[key]uint64)
+}
+
+// Copy makes a deep copy as quickly as possible
+func (s *Set) Copy() Set {
+	// Make sure to allocate the same size
+	copy := make(map[key]uint64, len(s.data))
+
+	// Fill it up
+	for key, slots := range s.data {
+		copy[key] = slots
+	}
+
+	return Set{data: copy}
+}
+
+// Equals will return true if `s` and `t` are
+// - the same length
+// - contain the same elements
+func (s *Set) Equals(t Set) bool {
+	if len(s.data) != len(t.data) {
+		return false
+	}
+
+	if s.Len() != t.Len() {
+		return false
+	}
+
+	for skey, sbits := range s.data {
+		if tbits, ok := t.data[skey]; !ok {
+			return false
+		} else {
+			if sbits != tbits {
+				return false
+			}
+		}
+	}
+
+	// We've checked that all keys in `s` are in `t`, but not the other way around
+	for tkey := range t.data {
+		if _, ok := s.data[tkey]; !ok {
+			return false
+		}
+	}
+
+	return true
+}
+
+// Union will create a new Set, and fill it with the union of `s` and `t`
+func (s *Set) Union(t Set) Set {
+	// Figure out which is larger
+	s_is_larger := s.Len() > t.Len()
+
+	// First create a copy of either `s` or `t`. Pick whichever is largest to reduce
+	// allocations.
+	var result Set
+	if s_is_larger {
+		result = s.Copy()
+	} else {
+		result = t.Copy()
+	}
+
+	// Iterate over the smaller set, and add all it's items to `result`
+	if s_is_larger {
+		for tkey, tslots := range t.data {
+			// Get the key from s (if it exists)
+			if sslots, ok := result.data[tkey]; ok {
+				result.data[tkey] = sslots | tslots
+			} else {
+				result.data[tkey] = tslots
+			}
+		}
+	} else {
+		for skey, sslots := range s.data {
+			// Get the key from t (if it exists)
+			if tslots, ok := result.data[skey]; ok {
+				result.data[skey] = sslots | tslots
+			} else {
+				result.data[skey] = sslots
+			}
+		}
+	}
+
+	return result
+}
+
+// UnionInPlace will add all the items in set `t` to set `s`
+func (s *Set) UnionInPlace(t Set) {
+	for tkey, tslots := range t.data {
+		// Get the key from s (if it exists)
+		if sslots, ok := s.data[tkey]; ok {
+			s.data[tkey] = sslots | tslots
+		} else {
+			s.data[tkey] = tslots
+		}
+	}
 }
