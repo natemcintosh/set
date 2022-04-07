@@ -327,8 +327,8 @@ func (s *Set) Equals(t Set) bool {
 
 // Union will create a new Set, and fill it with the union of `s` and `t`
 func (s *Set) Union(t Set) Set {
-	// Figure out which is larger
-	s_is_larger := s.Len() > t.Len()
+	// Figure out which is has more key->value pairs
+	s_is_larger := len(s.data) > len(t.data)
 
 	// First create a copy of either `s` or `t`. Pick whichever is largest to reduce
 	// allocations.
@@ -382,7 +382,7 @@ func (s *Set) Intersection(t Set) Set {
 
 	// Iterate over the smaller of the two sets, and add the item to `result` if it is
 	// in the larger of the two sets
-	if s.Len() < t.Len() {
+	if len(s.data) < len(t.data) {
 		for skey, sslots := range s.data {
 			// Get the key from t (if it exists)
 			if tslots, ok := t.data[skey]; ok {
@@ -407,10 +407,232 @@ func (s *Set) Intersection(t Set) Set {
 
 // IntersectionInPlace will remove any items from `s` that are not in `t`
 func (s *Set) IntersectionInPlace(t Set) {
+	// For each key in `s`, check if it is in `t`
+	// If it is, perform the intersection, else remove it
+	// If the intersection is 0, remove the key
+	for skey, sslots := range s.data {
+		// Get the key from t (if it exists)
+		if tslots, ok := t.data[skey]; ok {
+			if (sslots & tslots) == 0 {
+				delete(s.data, skey)
+			} else {
+				s.data[skey] = sslots & tslots
+			}
+		} else {
+			// The key does not exist in `t`, so remove it from `s`
+			delete(s.data, skey)
+		}
+	}
+}
+
+// IsDisjoint will return true if the set has no elements in common with `t`. Sets are
+// disjoint if and only if their intersection is the empty set
+func (s *Set) IsDisjoint(t Set) bool {
+	// Iterate over the smaller of the two sets. If we find an item in one that is in
+	// the other, return false
+	if len(s.data) < len(t.data) {
+		for skey, sslots := range s.data {
+			// Get the key from t (if it exists)
+			if tslots, ok := t.data[skey]; ok {
+				if (sslots & tslots) != 0 {
+					return false
+				}
+			}
+		}
+	} else {
+		for tkey, tslots := range t.data {
+			// Get the key from s (if it exists)
+			if sslots, ok := s.data[tkey]; ok {
+				if (sslots & tslots) != 0 {
+					return false
+				}
+			}
+
+		}
+	}
+	return true
+}
+
+// IsSubsetOf tests whether every element in `s` is in `t`
+func (s *Set) IsSubsetOf(t Set) bool {
+	// Iterate over `s`. If we find an item in `s` that is not in `t`, return false
+	for skey, sslots := range s.data {
+		// Get the key from t (if it exists)
+		if tslots, ok := t.data[skey]; ok {
+			if (sslots & tslots) != sslots {
+				return false
+			}
+		} else {
+			// The key does not exist in `t`, so return false
+			return false
+		}
+	}
+	return true
+}
+
+// IsProperSubsetOf tests whether every element in `s` is in `t`, but that
+// `s.Equals(t) == false`
+func (s *Set) IsProperSubsetOf(t Set) bool {
+
+	// Iterate over `s`. If we find an item in `s` that is not in `t`, return false
+	for skey, sslots := range s.data {
+		// Get the key from t (if it exists)
+		if tslots, ok := t.data[skey]; ok {
+			if (sslots & tslots) != sslots {
+				return false
+			}
+		} else {
+			// The key does not exist in `t`, so return false
+			return false
+		}
+	}
+
+	// If the lengths are equal, we have just verified that the two sets are equal.
+	if s.Len() == t.Len() {
+		return false
+	} else {
+		return true
+	}
+
+}
+
+// IsSuperSetOf tests whether every element in `t` is in `s`
+func (s *Set) IsSuperSetOf(t Set) bool {
+	// Iterate over `t`. If we find an item in `t` that is not in `s`, return false
 	for tkey, tslots := range t.data {
 		// Get the key from s (if it exists)
 		if sslots, ok := s.data[tkey]; ok {
-			s.data[tkey] = sslots & tslots
+			if (sslots & tslots) != tslots {
+				return false
+			}
+		} else {
+			// The key does not exist in `s`, so return false
+			return false
 		}
 	}
+	return true
+}
+
+// IsProperSuperSetOf tests whether every element in `t` is in `s`, but that
+// `s.Equals(t) == false`
+func (s *Set) IsProperSuperSetOf(t Set) bool {
+
+	// Iterate over `t`. If we find an item in `t` that is not in `s`, return false
+	for tkey, tslots := range t.data {
+		// Get the key from s (if it exists)
+		if sslots, ok := s.data[tkey]; ok {
+			if (sslots & tslots) != tslots {
+				return false
+			}
+		} else {
+			// The key does not exist in `s`, so return false
+			return false
+		}
+	}
+
+	// If the lengths are equal, we have just verified that the two sets are equal.
+	if s.Len() == t.Len() {
+		return false
+	} else {
+		return true
+	}
+
+}
+
+// Difference returns a new set with elements in `s` that are not in `t`
+func (s *Set) Difference(t Set) Set {
+	// Copy `s`
+	result := s.Copy()
+
+	// Iterate over `t`. If we find an item in `result`, remove it from `result`
+	for tkey, tslots := range t.data {
+		// Get the key from result (if it exists)
+		if sslots, ok := result.data[tkey]; ok {
+			// Make sslots the intersection of sslots and tslots
+			if sslots^tslots == 0 {
+				delete(result.data, tkey)
+			} else {
+				result.data[tkey] = sslots &^ tslots
+			}
+		}
+	}
+
+	return result
+}
+
+// DifferenceInPlace removes any elements in `s` that are in `t`
+func (s *Set) DifferenceInPlace(t Set) {
+	// Iterate over `t`. If we find an item in `s`, remove it from `s`
+	for tkey, tslots := range t.data {
+		// Get the key from s (if it exists)
+		if sslots, ok := s.data[tkey]; ok {
+			// Make sslots the intersection of sslots and tslots
+			if sslots^tslots == 0 {
+				delete(s.data, tkey)
+			} else {
+				s.data[tkey] = sslots &^ tslots
+			}
+		}
+	}
+}
+
+// SymmetricDifference returns a new set with elements in either `s` or `t`, but not both
+func (s *Set) SymmetricDifference(t Set) Set {
+	// Make an empty set to populate
+	data := make(map[key]uint64)
+
+	// Iterate over `s`, and add the item if it does not exist in `t`
+	for skey, sslots := range s.data {
+		// Get the key from t (if it exists)
+		if tslots, ok := t.data[skey]; ok {
+			// Make sslots the intersection of sslots and tslots
+			if sslots^tslots == 0 {
+				continue
+			} else {
+				data[skey] = sslots ^ tslots
+			}
+		} else {
+			// The key does not exist in `t`, so add it to the result
+			data[skey] = sslots
+		}
+	}
+
+	// Iterate over `t`, and add the item if it does not exist in `s`
+	for tkey, tslots := range t.data {
+		// Get the key from s (if it exists)
+		if sslots, ok := s.data[tkey]; ok {
+			// Make sslots the intersection of sslots and tslots
+			if sslots^tslots == 0 {
+				continue
+			} else {
+				data[tkey] = sslots ^ tslots
+			}
+		} else {
+			// The key does not exist in `s`, so add it to the result
+			data[tkey] = tslots
+		}
+	}
+
+	return Set{data: data}
+}
+
+// SymmerticDifferenceInPlace removes any elements in `s` that are in `t`, and adds any
+// elements in `t` that are not in `s`
+func (s *Set) SymmetricDifferenceInPlace(t Set) {
+	// Iterate over `t`. If we find an item in `s`, remove it from `s`, otherwise add it
+	for tkey, tslots := range t.data {
+		// Get the key from s (if it exists)
+		if sslots, ok := s.data[tkey]; ok {
+			// Make sslots the intersection of sslots and tslots
+			if sslots^tslots == 0 {
+				delete(s.data, tkey)
+			} else {
+				s.data[tkey] = sslots ^ tslots
+			}
+		} else {
+			// The key does not exist in `s`, so add it to the result
+			s.data[tkey] = tslots
+		}
+	}
+
 }

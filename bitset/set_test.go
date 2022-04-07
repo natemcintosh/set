@@ -813,6 +813,33 @@ func BenchmarkMonteCarloRuns(b *testing.B) {
 	}
 }
 
+func BenchmarkMonteCarloRunsInPlace(b *testing.B) {
+	// Create a set of numbers from 1 to 1,000
+	mcslice := make([]int, 1000)
+	// Fill it with numbers from 1 to 1,000
+	for i := 0; i < 1000; i++ {
+		mcslice[i] = i + 1
+	}
+	// Create a set from the slice
+	mcs := NewSet(mcslice)
+
+	// Create a set that is a subset of `mcs`
+	mcs_subset := mcs.Copy()
+	mcs_subset.Discard(1)
+	mcs_subset.Discard(20)
+	mcs_subset.Discard(50)
+	mcs_subset.Discard(143)
+	mcs_subset.Discard(999)
+
+	// Reset the benchmark timer
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		// Discover which mcs are not in the subset
+		mcs.DifferenceInPlace(mcs_subset)
+	}
+}
+
 func TestUnion(t *testing.T) {
 	testCases := []struct {
 		desc string
@@ -1121,7 +1148,7 @@ func TestIntersection(t *testing.T) {
 	}
 }
 
-func BenchmarkIntersectionInt(b *testing.B) {
+func BenchmarkIntersection(b *testing.B) {
 	benchCases := []struct {
 		desc string
 		in1  Set
@@ -1221,8 +1248,8 @@ func FuzzIntersectionInPlace(f *testing.F) {
 		set2 := set.NewSet(items[split_point:])
 
 		// Take the intersection
-		bitset1.Intersection(bitset2)
-		set1.Intersection(set2)
+		bitset1.IntersectionInPlace(bitset2)
+		set1.IntersectionInPlace(set2)
 
 		// Convert them to slices to compare
 		bitslice := bitset1.Slice()
@@ -1232,6 +1259,1008 @@ func FuzzIntersectionInPlace(f *testing.F) {
 
 		if !equal(bitslice, slice) {
 			t.Errorf("bit set %v did not match set %v\nSet 1 = %v\nSet 2 = %v", bitslice, slice, bitset1, bitset2)
+		}
+	})
+}
+
+func TestIntersectionInPlace(t *testing.T) {
+
+	testCases := []struct {
+		desc string
+		s1   Set
+		s2   Set
+		want Set
+	}{
+		{
+			desc: "no intersection",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+			want: NewSet([]int{}),
+		},
+		{
+			desc: "some intersection",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+			want: NewSet([]int{5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "all intersection",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "a fuzz case",
+			s1:   NewSet([]int{6129484611666145821, 4037200794235010051, 5577006791947779410, 8674665223082153551}),
+			s2:   NewSet([]int{3916589616287113937, 6334824724549167320, 605394647632969758, 1443635317331776148, 894385949183117216, 2775422040480279449}),
+			want: NewSet([]int{}),
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			s1 := tC.s1.Copy()
+			s2 := tC.s2.Copy()
+			s1.IntersectionInPlace(s2)
+			if !s1.Equals(tC.want) {
+				t.Errorf("got %v, want %v", s1, tC.want)
+			}
+		})
+	}
+}
+
+func TestIsDisjoint(t *testing.T) {
+	testCases := []struct {
+		desc string
+		s1   Set
+		s2   Set
+		want bool
+	}{
+		{
+			desc: "are disjoint",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+			want: true,
+		},
+		{
+			desc: "are not disjoint",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+			want: false,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			if got := tC.s1.IsDisjoint(tC.s2); got != tC.want {
+				t.Errorf("got %v, want %v", got, tC.want)
+			}
+		})
+	}
+}
+
+func BenchmarkIsDijointInt(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		in1  Set
+		in2  Set
+	}{
+		{
+			desc: "entirely overlapping",
+			in1:  NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			in2:  NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "some overlap",
+			in1:  NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			in2:  NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+		},
+		{
+			desc: "no overlap",
+			in1:  NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			in2:  NewSet([]int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.in1.IsDisjoint(bC.in2)
+			}
+		})
+	}
+}
+
+func FuzzIsDisjoint(f *testing.F) {
+	// This fuzz test is for checking that IntersectionInPlace always matches between the two
+	// set types
+	f.Add(2)
+	f.Add(10)
+
+	f.Fuzz(func(t *testing.T, _n int) {
+		n := abs(_n)
+		items := make([]int, n)
+		// Create n random ints
+		for i := 0; i < n; i++ {
+			items[i] = rand.Int()
+		}
+
+		// Create the sets
+		var split_point int
+		if n < 2 {
+			split_point = 0
+		} else {
+			split_point = rand.Intn(len(items))
+		}
+		bitset1 := NewSet(items[:split_point])
+		bitset2 := NewSet(items[split_point:])
+		set1 := set.NewSet(items[:split_point])
+		set2 := set.NewSet(items[split_point:])
+
+		// Take the intersection
+		bitresult := bitset1.IsDisjoint(bitset2)
+		setresult := set1.IsDisjoint(set2)
+
+		if bitresult != setresult {
+			t.Errorf("got %v, want %v", bitresult, setresult)
+		}
+	})
+}
+
+func TestIsSubset(t *testing.T) {
+	testCases := []struct {
+		desc string
+		s1   Set
+		s2   Set
+		want bool
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: true,
+		},
+		{
+			desc: "some overlap, but not subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+			want: false,
+		},
+		{
+			desc: "is small subset",
+			s1:   NewSet([]int{1, 5, 8, 9}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: true,
+		},
+		{
+			desc: "is not a subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: false,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			if got := tC.s1.IsSubsetOf(tC.s2); got != tC.want {
+				t.Errorf("got %v, want %v", got, tC.want)
+			}
+		})
+	}
+}
+
+func BenchmarkIsSubsetInt(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		s1   Set
+		s2   Set
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "some overlap, but not subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+		},
+		{
+			desc: "is small subset",
+			s1:   NewSet([]int{1, 5, 8, 9}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "is not a subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.s1.IsSubsetOf(bC.s2)
+			}
+		})
+	}
+}
+
+func FuzzIsSubsetOf(f *testing.F) {
+	// This fuzz test is for checking that IsSubsetOf always matches between the two
+	// set types
+	f.Add(2)
+	f.Add(10)
+
+	f.Fuzz(func(t *testing.T, _n int) {
+		n := abs(_n)
+		items := make([]int, n)
+		// Create n random ints
+		for i := 0; i < n; i++ {
+			items[i] = rand.Int()
+		}
+
+		// Create the sets
+		var split_point int
+		if n < 2 {
+			split_point = 0
+		} else {
+			split_point = rand.Intn(len(items))
+		}
+		bitset1 := NewSet(items[:split_point])
+		bitset2 := NewSet(items[split_point:])
+		set1 := set.NewSet(items[:split_point])
+		set2 := set.NewSet(items[split_point:])
+
+		// Take the intersection
+		bitresult := bitset1.IsSubsetOf(bitset2)
+		setresult := set1.IsSubsetOf(set2)
+
+		if bitresult != setresult {
+			t.Errorf("got %v, want %v", bitresult, setresult)
+		}
+	})
+}
+
+func TestIsProperSubset(t *testing.T) {
+	testCases := []struct {
+		desc string
+		s1   Set
+		s2   Set
+		want bool
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: false,
+		},
+		{
+			desc: "some overlap, but not subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+			want: false,
+		},
+		{
+			desc: "is small subset",
+			s1:   NewSet([]int{1, 5, 8, 9}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: true,
+		},
+		{
+			desc: "is not a subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: false,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			if got := tC.s1.IsProperSubsetOf(tC.s2); got != tC.want {
+				t.Errorf("got %v, want %v", got, tC.want)
+			}
+		})
+	}
+}
+
+func BenchmarkIsProperSubsetInt(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		s1   Set
+		s2   Set
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "some overlap, but not subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+		},
+		{
+			desc: "is small subset",
+			s1:   NewSet([]int{1, 5, 8, 9}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "is not a subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.s1.IsProperSubsetOf(bC.s2)
+			}
+		})
+	}
+}
+
+func FuzzIsProperSubsetOf(f *testing.F) {
+	// This fuzz test is for checking that IsProperSubsetOf always matches between the two
+	// set types
+	f.Add(2)
+	f.Add(10)
+
+	f.Fuzz(func(t *testing.T, _n int) {
+		n := abs(_n)
+		items := make([]int, n)
+		// Create n random ints
+		for i := 0; i < n; i++ {
+			items[i] = rand.Int()
+		}
+
+		// Create the sets
+		var split_point int
+		if n < 2 {
+			split_point = 0
+		} else {
+			split_point = rand.Intn(len(items))
+		}
+		bitset1 := NewSet(items[:split_point])
+		bitset2 := NewSet(items[split_point:])
+		set1 := set.NewSet(items[:split_point])
+		set2 := set.NewSet(items[split_point:])
+
+		// Take the intersection
+		bitresult := bitset1.IsProperSubsetOf(bitset2)
+		setresult := set1.IsProperSubsetOf(set2)
+
+		if bitresult != setresult {
+			t.Errorf("got %v, want %v", bitresult, setresult)
+		}
+	})
+}
+
+func TestIsSuperSetOf(t *testing.T) {
+	testCases := []struct {
+		desc string
+		s1   Set
+		s2   Set
+		want bool
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: true,
+		},
+		{
+			desc: "some overlap, but not subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+			want: false,
+		},
+		{
+			desc: "is small subset",
+			s1:   NewSet([]int{1, 5, 8, 9}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: false,
+		},
+		{
+			desc: "is not a subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: true,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			if got := tC.s1.IsSuperSetOf(tC.s2); got != tC.want {
+				t.Errorf("got %v, want %v", got, tC.want)
+			}
+		})
+	}
+}
+
+func BenchmarkIsSuperSetOf(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		s1   Set
+		s2   Set
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "some overlap, but not subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+		},
+		{
+			desc: "is small subset",
+			s1:   NewSet([]int{1, 5, 8, 9}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "is not a subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.s1.IsSuperSetOf(bC.s2)
+			}
+		})
+	}
+}
+
+func FuzzIsSuperSetOf(f *testing.F) {
+	// This fuzz test is for checking that IsSuperSetOf always matches between the two
+	// set types
+	f.Add(2)
+	f.Add(10)
+
+	f.Fuzz(func(t *testing.T, _n int) {
+		n := abs(_n)
+		items := make([]int, n)
+		// Create n random ints
+		for i := 0; i < n; i++ {
+			items[i] = rand.Int()
+		}
+
+		// Create the sets
+		var split_point int
+		if n < 2 {
+			split_point = 0
+		} else {
+			split_point = rand.Intn(len(items))
+		}
+		bitset1 := NewSet(items[:split_point])
+		bitset2 := NewSet(items[split_point:])
+		set1 := set.NewSet(items[:split_point])
+		set2 := set.NewSet(items[split_point:])
+
+		// Take the intersection
+		bitresult := bitset1.IsSuperSetOf(bitset2)
+		setresult := set1.IsSuperSetOf(set2)
+
+		if bitresult != setresult {
+			t.Errorf("got %v, want %v", bitresult, setresult)
+		}
+	})
+}
+
+func TestIsProperSuperSetOf(t *testing.T) {
+	testCases := []struct {
+		desc string
+		s1   Set
+		s2   Set
+		want bool
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: false,
+		},
+		{
+			desc: "some overlap, but not subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+			want: false,
+		},
+		{
+			desc: "is small subset",
+			s1:   NewSet([]int{1, 5, 8, 9}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: false,
+		},
+		{
+			desc: "is not a subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: true,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			if got := tC.s1.IsProperSuperSetOf(tC.s2); got != tC.want {
+				t.Errorf("got %v, want %v", got, tC.want)
+			}
+		})
+	}
+}
+
+func BenchmarkIsProperSuperSetOf(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		s1   Set
+		s2   Set
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "some overlap, but not subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+		},
+		{
+			desc: "is small subset",
+			s1:   NewSet([]int{1, 5, 8, 9}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "is not a subset",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.s1.IsProperSuperSetOf(bC.s2)
+			}
+		})
+	}
+}
+
+func FuzzIsProperSuperSetOf(f *testing.F) {
+	// This fuzz test is for checking that IsProperSuperSetOf always matches between the two
+	// set types
+	f.Add(2)
+	f.Add(10)
+
+	f.Fuzz(func(t *testing.T, _n int) {
+		n := abs(_n)
+		items := make([]int, n)
+		// Create n random ints
+		for i := 0; i < n; i++ {
+			items[i] = rand.Int()
+		}
+
+		// Create the sets
+		var split_point int
+		if n < 2 {
+			split_point = 0
+		} else {
+			split_point = rand.Intn(len(items))
+		}
+		bitset1 := NewSet(items[:split_point])
+		bitset2 := NewSet(items[split_point:])
+		set1 := set.NewSet(items[:split_point])
+		set2 := set.NewSet(items[split_point:])
+
+		// Take the intersection
+		bitresult := bitset1.IsProperSuperSetOf(bitset2)
+		setresult := set1.IsProperSuperSetOf(set2)
+
+		if bitresult != setresult {
+			t.Errorf("got %v, want %v", bitresult, setresult)
+		}
+	})
+}
+
+func TestDifference(t *testing.T) {
+	testCases := []struct {
+		desc string
+		s1   Set
+		s2   Set
+		want Set
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: NewSet([]int{}),
+		},
+		{
+			desc: "some overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+			want: NewSet([]int{1, 2, 3, 4}),
+		},
+		{
+			desc: "tiny overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2}),
+			want: NewSet([]int{3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "no overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+			want: NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			got := tC.s1.Difference(tC.s2)
+			if !got.Equals(tC.want) {
+				t.Errorf("got %v, want %v", got, tC.want)
+			}
+		})
+	}
+}
+
+func BenchmarkDifference(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		s1   Set
+		s2   Set
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "some overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+		},
+		{
+			desc: "tiny overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2}),
+		},
+		{
+			desc: "no overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.s1.Difference(bC.s2)
+			}
+		})
+	}
+}
+
+func FuzzDifference(f *testing.F) {
+	// This fuzz test is for checking that Difference always matches between the two
+	// set types
+	f.Add(2)
+	f.Add(10)
+
+	f.Fuzz(func(t *testing.T, _n int) {
+		n := abs(_n)
+		items := make([]int, n)
+		// Create n random ints
+		for i := 0; i < n; i++ {
+			items[i] = rand.Int()
+		}
+
+		// Create the sets
+		var split_point int
+		if n < 2 {
+			split_point = 0
+		} else {
+			split_point = rand.Intn(len(items))
+		}
+		bitset1 := NewSet(items[:split_point])
+		bitset2 := NewSet(items[split_point:])
+		set1 := set.NewSet(items[:split_point])
+		set2 := set.NewSet(items[split_point:])
+
+		// Take the Difference
+		bitset := bitset1.Difference(bitset2)
+		set := set1.Difference(set2)
+
+		// Check that both sets are the same
+		setslice := set.Slice()
+		bitsetslice := bitset.Slice()
+
+		slices.Sort(setslice)
+		slices.Sort(bitsetslice)
+
+		if !equal(setslice, bitsetslice) {
+			t.Errorf("got %v, want %v", bitsetslice, setslice)
+		}
+	})
+}
+
+func TestDifferenceInPlace(t *testing.T) {
+	testCases := []struct {
+		desc string
+		s1   Set
+		s2   Set
+		want Set
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: NewSet([]int{}),
+		},
+		{
+			desc: "some overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+			want: NewSet([]int{1, 2, 3, 4}),
+		},
+		{
+			desc: "tiny overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2}),
+			want: NewSet([]int{3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "no overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+			want: NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			if tC.s1.DifferenceInPlace(tC.s2); !tC.s1.Equals(tC.want) {
+				t.Errorf("got %v, want %v", tC.s1, tC.want)
+			}
+		})
+	}
+}
+
+func FuzzDifferenceInPlace(f *testing.F) {
+	// This fuzz test is for checking that DifferenceInPlace always matches between the two
+	// set types
+	f.Add(2)
+	f.Add(10)
+
+	f.Fuzz(func(t *testing.T, _n int) {
+		n := abs(_n)
+		items := make([]int, n)
+		// Create n random ints
+		for i := 0; i < n; i++ {
+			items[i] = rand.Int()
+		}
+
+		// Create the sets
+		var split_point int
+		if n < 2 {
+			split_point = 0
+		} else {
+			split_point = rand.Intn(len(items))
+		}
+		bitset1 := NewSet(items[:split_point])
+		bitset2 := NewSet(items[split_point:])
+		set1 := set.NewSet(items[:split_point])
+		set2 := set.NewSet(items[split_point:])
+
+		// Take the Difference
+		bitset1.DifferenceInPlace(bitset2)
+		set1.DifferenceInPlace(set2)
+
+		// Check that both sets are the same
+		setslice := set1.Slice()
+		bitsetslice := bitset1.Slice()
+
+		slices.Sort(setslice)
+		slices.Sort(bitsetslice)
+
+		if !equal(setslice, bitsetslice) {
+			t.Errorf("got %v, want %v", bitsetslice, setslice)
+		}
+	})
+}
+
+func TestSymmetricDifference(t *testing.T) {
+	testCases := []struct {
+		desc string
+		s1   Set
+		s2   Set
+		want Set
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: NewSet([]int{}),
+		},
+		{
+			desc: "some overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+			want: NewSet([]int{1, 2, 3, 4, 11, 12, 13, 14}),
+		},
+		{
+			desc: "tiny overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2}),
+			want: NewSet([]int{3, 4, 5, 6, 7, 8, 9, 10, 3, 4}),
+		},
+		{
+			desc: "no overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{-11, -12, -13, -14, -15, -16, -17, -18, -19, -20}),
+			want: NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -11, -12, -13, -14, -15, -16, -17, -18, -19, -20}),
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			if got := tC.s1.SymmetricDifference(tC.s2); !got.Equals(tC.want) {
+				t.Errorf("got %v, want %v", got, tC.want)
+			}
+		})
+	}
+}
+
+func BenchmarkSymmetricDifference(b *testing.B) {
+	benchCases := []struct {
+		desc string
+		s1   Set
+		s2   Set
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+		},
+		{
+			desc: "some overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+		},
+		{
+			desc: "tiny overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2}),
+		},
+		{
+			desc: "no overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+		},
+	}
+	for _, bC := range benchCases {
+		b.Run(bC.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bC.s1.SymmetricDifference(bC.s2)
+			}
+		})
+	}
+}
+
+func FuzzSymmetricDifference(f *testing.F) {
+	// This fuzz test is for checking that SymmetricDifference always matches between the two
+	// set types
+	f.Add(2)
+	f.Add(10)
+
+	f.Fuzz(func(t *testing.T, _n int) {
+		n := abs(_n)
+		items := make([]int, n)
+		// Create n random ints
+		for i := 0; i < n; i++ {
+			items[i] = rand.Int()
+		}
+
+		// Create the sets
+		var split_point int
+		if n < 2 {
+			split_point = 0
+		} else {
+			split_point = rand.Intn(len(items))
+		}
+		bitset1 := NewSet(items[:split_point])
+		bitset2 := NewSet(items[split_point:])
+		set1 := set.NewSet(items[:split_point])
+		set2 := set.NewSet(items[split_point:])
+
+		// Take the SymmetricDifference
+		bitset := bitset1.SymmetricDifference(bitset2)
+		set := set1.SymmetricDifference(set2)
+
+		// Check that both sets are the same
+		setslice := set.Slice()
+		bitsetslice := bitset.Slice()
+
+		slices.Sort(setslice)
+		slices.Sort(bitsetslice)
+
+		if !equal(setslice, bitsetslice) {
+			t.Errorf("got %v, want %v", bitsetslice, setslice)
+		}
+	})
+}
+
+func TestSymmetricDifferenceInPlace(t *testing.T) {
+	testCases := []struct {
+		desc string
+		s1   Set
+		s2   Set
+		want Set
+	}{
+		{
+			desc: "exact match",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			want: NewSet([]int{}),
+		},
+		{
+			desc: "some overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
+			want: NewSet([]int{1, 2, 3, 4, 11, 12, 13, 14}),
+		},
+		{
+			desc: "tiny overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{1, 2}),
+			want: NewSet([]int{3, 4, 5, 6, 7, 8, 9, 10, 3, 4}),
+		},
+		{
+			desc: "no overlap",
+			s1:   NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			s2:   NewSet([]int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+			want: NewSet([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			if tC.s1.SymmetricDifferenceInPlace(tC.s2); !tC.s1.Equals(tC.want) {
+				t.Errorf("got %v, want %v", tC.s1, tC.want)
+			}
+		})
+	}
+}
+
+func FuzzSymmetricDifferenceInPlace(f *testing.F) {
+	// This fuzz test is for checking that SymmetricDifferenceInPlace always matches between the two
+	// set types
+	f.Add(2)
+	f.Add(10)
+
+	f.Fuzz(func(t *testing.T, _n int) {
+		n := abs(_n)
+		items := make([]int, n)
+		// Create n random ints
+		for i := 0; i < n; i++ {
+			items[i] = rand.Int()
+		}
+
+		// Create the sets
+		var split_point int
+		if n < 2 {
+			split_point = 0
+		} else {
+			split_point = rand.Intn(len(items))
+		}
+		bitset1 := NewSet(items[:split_point])
+		bitset2 := NewSet(items[split_point:])
+		set1 := set.NewSet(items[:split_point])
+		set2 := set.NewSet(items[split_point:])
+
+		// Take the SymmetricDifferenceInPlace
+		bitset1.SymmetricDifferenceInPlace(bitset2)
+		set1.SymmetricDifferenceInPlace(set2)
+
+		// Check that both sets are the same
+		setslice := set1.Slice()
+		bitsetslice := bitset1.Slice()
+
+		slices.Sort(setslice)
+		slices.Sort(bitsetslice)
+
+		if !equal(setslice, bitsetslice) {
+			t.Errorf("got %v, want %v", bitsetslice, setslice)
 		}
 	})
 }
