@@ -1096,6 +1096,14 @@ func BenchmarkNumber_to_bitset_representation(b *testing.B) {
 			desc: "155",
 			in:   155,
 		},
+		{
+			desc: "4321",
+			in:   4321,
+		},
+		{
+			desc: "3849328234",
+			in:   3849328234,
+		},
 	}
 	for _, bC := range benchCases {
 		b.Run(bC.desc, func(b *testing.B) {
