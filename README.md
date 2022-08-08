@@ -6,6 +6,12 @@ a set must be `comparable`. `Comparable` is an interface that is implemented by 
 comparable types (booleans, numbers, strings, pointers, channels, arrays of comparable
 types, structs whose fields are all comparable types).
 
+The top level module, `set`, uses go's built in `map` to store the items of the set as
+keys, and an empty struct as the value. The sub-module `bitset` uses `uint64`s as the
+underlying container of bits, and it keeps track of which continuous set of 64 integers
+that `uint64` represents with a key telling if it is positive, and how many multiples
+of 64 it is along the numberline.
+
 ## API
 ```go
 package main
@@ -171,11 +177,3 @@ func main() {
 	// taking_science has become {Larry, Moe, Albert}
 }
 ```
-
-
-### Questions for later
-In operations where we may have to allocate more space for the underlying map, is it
-faster to just iterate over the items and let the runtime allocate for us? Or is it
-faster to figure out how much space we'll need first, then allocate manually, and then
-add the various items to the new map? For now, I'm guessing that it probably depends
-heavily on the use case.

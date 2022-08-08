@@ -25,3 +25,18 @@ Cons:
 Pros:
 1. We can handle sparse sets relatively well
 1. We still get access to bit operations for fast comparisons of `uint64` containers
+
+### Questions for later
+Instead of using `uint64` as the value type in the map, could also use a fixed size 
+array of `uint64`. This might have some benefits if there are larger continuous runs of
+numbers.
+```go
+type key struct {
+	is_positive bool
+	multiplier  uint64
+}
+
+type Set struct {
+	data map[key][5]uint64
+}
+```
