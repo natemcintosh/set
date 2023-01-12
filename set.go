@@ -104,7 +104,8 @@ func (s *Set[T]) Add(item T) {
 	s.data[item] = struct{}{}
 }
 
-// Remove removes an item from the set. Returns an error if the item doesn't exist
+// Remove removes an item from the set. Returns an error if the item doesn't exist.
+// See `Discard` for method that does not return an error
 func (s *Set[T]) Remove(item T) error {
 	if !s.Contains(item) {
 		return ErrElementNotFound
@@ -275,6 +276,11 @@ func (s *Set[T]) IsSubsetOf(t Set[T]) bool {
 // IsProperSubsetOf tests whether every element in `s` is in `t`, but that
 // `s.Equals(t) == false`
 func (s *Set[T]) IsProperSubsetOf(t Set[T]) bool {
+
+	// Quick check that `s` has fewer elements than `t`
+	if s.Len() >= t.Len() {
+		return false
+	}
 
 	// Iterate over `s`. If we find an item in `s` that is not in `t`, return false
 	for v := range s.data {
